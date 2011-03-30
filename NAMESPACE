@@ -1,0 +1,2 @@
+useDynLib(bayesQR)
+export(QRc,QRb)
