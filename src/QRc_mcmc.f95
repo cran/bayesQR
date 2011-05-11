@@ -304,16 +304,57 @@ REAL(dp), INTENT(IN) :: x, nu, ssq
 REAL(dp), INTENT(OUT) :: fn_val
 
 ! Internal arguments:
-REAL(dp) :: a, b
+REAL(dp) :: a, b, c
 
-a = -LOG_GAMMA(nu/2.0_dp) + (nu/2.0_dp) * LOG((nu * ssq)/2.0_dp)
-b = -((nu/2.0_dp) + 1.0_dp) * LOG(x) - (nu * ssq)/(2.0_dp * x)
-fn_val = a + b
-
+CALL LACZ_GAMMA(nu/2.0_dp, a)
+b = -LOG(a) + (nu/2.0_dp) * LOG((nu * ssq)/2.0_dp)
+c = -((nu/2.0_dp) + 1.0_dp) * LOG(x) - (nu * ssq)/(2.0_dp * x)
+fn_val = b + c
 
 END SUBROUTINE logdichisq
 
 !===========================================================================================
 
+RECURSIVE SUBROUTINE lacz_gamma(x, fn_val)
+
+IMPLICIT NONE   
+
+! Precision statement:
+INTEGER, PARAMETER :: dp = KIND(1.0d0)
+
+! Input arguments:
+REAL(dp), INTENT(IN) :: x
+
+! Output arguments:
+REAL(dp), INTENT(OUT) :: fn_val
+
+! Local arguments:
+INTEGER :: i
+REAL(dp) :: t, w, a, b
+INTEGER, PARAMETER :: cg = 7
+REAL(dp), PARAMETER :: pi = 3.14159265358979324_dp
+REAL(dp), DIMENSION(0:8), PARAMETER :: p = &
+        (/ 0.99999999999980993_dp, 676.5203681218851_dp, -1259.1392167224028_dp, &
+        771.32342877765313_dp, -176.61502916214059_dp, 12.507343278686905_dp, &
+        -0.13857109526572012_dp, 9.9843695780195716D-6, 1.5056327351493116D-7 /)
+
+a = x
+
+IF (a < .5_dp) THEN
+        CALL lacz_gamma(1.0_dp - a, b)
+        fn_val = pi / (sin(pi*a) * b)
+ELSE
+        a = a - 1.0_dp
+        t = p(0)
+        DO i = 1, cg+2
+                t = t + p(i)/(a+REAL(i,dp))
+        END DO
+        w = a + REAL(cg,dp) + .5_dp
+        fn_val = SQRT(2.0_dp*pi) * w**(a+.5_dp) * EXP(-w) * t
+END IF
+
+END SUBROUTINE lacz_gamma
+
+!===========================================================================================
 
 END SUBROUTINE QRc_mcmc

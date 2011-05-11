@@ -38,7 +38,7 @@
     \item \bold{A} : nvar(X) x nvar(X) prior precision matrix (inverse variancecovariance matrix) (default: .01*diag(ncol(X)))
     \item \bold{R} : number of MCMC draws
     \item \bold{keep} : thinning parameter, i.e. keep every keepth draw (default: 1)
-    \item \bold{step} : MH step for beta, tune to get \emph{rejrate} between 0.2 and 0.6
+    \item \bold{step} : MH step for beta, tune to get \emph{rejrate} between 0.3 and 0.5
   }
 }
 \author{

@@ -41,8 +41,8 @@
     \item \bold{ssq} : scale parameter for Inverted Chi-square prior for sigma (default: var(y))
     \item \bold{R} : number of MCMC draws
     \item \bold{keep} : thinning parameter, i.e. keep every keepth draw (default: 1)
-    \item \bold{step_beta} : MH step for beta, tune to get \emph{rejrate_beta} between 0.2 and 0.6
-    \item \bold{step_sigma} : MH step for sigma, tune to get \emph{rejrate_sigma} between 0.2 and 0.6
+    \item \bold{step_beta} : MH step for beta, tune to get \emph{rejrate_beta} between 0.3 and 0.5
+    \item \bold{step_sigma} : MH step for sigma, tune to get \emph{rejrate_sigma} between 0.3 and 0.5
   }
 }
 \author{
