@@ -17,9 +17,9 @@
 }
 \value{
   A list containing:
-  \item{betadraw}{ R x nvar(X) array of beta draws }
-  \item{sigmadraw}{ R vector of sigma draws }
-  \item{loglike}{ R vector of evaluations of the loglikelihood }
+  \item{betadraw}{ R/keep x nvar(X) matrix of beta draws }
+  \item{sigmadraw}{ R/keep vector of sigma draws }
+  \item{loglike}{ R/keep vector of evaluations of the loglikelihood }
   \item{rejrate_beta}{ Rejection rate of the MH proposals for beta }
   \item{rejrate_sigma}{ Rejection rate of the MH proposals for sigma }
 }
@@ -46,7 +46,7 @@
   }
 }
 \author{
-  Dries F. Benoit, Keming Yu and Dirk Van den Poel
+  Dries F. Benoit, Rahim Al-Hamzawi, Keming Yu and Dirk Van den Poel
 }
 \references{ The algorithm is an implementation (with minor changes) of: \cr
   Yu, K. and Moyeed, R. (2001). Bayesian quantile regression, \emph{Statistics 

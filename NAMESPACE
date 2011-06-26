@@ -1,2 +1,2 @@
 useDynLib(bayesQR)
-export(QRc,QRb)
+export(QRc,QRb,QRc.AL)

@@ -18,8 +18,8 @@
 }
 \value{
   A list containing:
-  \item{betadraw}{ R x nvar(X) array of beta draws }
-  \item{loglike}{ R vector of evaluations of the loglikelihood }
+  \item{betadraw}{ R/keep x nvar(X) matrix of beta draws }
+  \item{loglike}{ R/keep vector of evaluations of the loglikelihood }
   \item{rejrate}{ Rejection rate of the MH proposals for beta }
 }
 \details{
@@ -42,7 +42,7 @@
   }
 }
 \author{
-  Dries F. Benoit, Keming Yu and Dirk Van den Poel
+  Dries F. Benoit, Rahim Al-Hamzawi, Keming Yu and Dirk Van den Poel
 }
 \references{ The algorithm is an implementation of: \cr
   Benoit, D.F and Van den Poel, D. (2011). Binary quantile regression: A Bayesian approach

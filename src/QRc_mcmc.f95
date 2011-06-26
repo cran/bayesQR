@@ -306,7 +306,7 @@ REAL(dp), INTENT(OUT) :: fn_val
 ! Internal arguments:
 REAL(dp) :: a, b, c
 
-CALL LACZ_GAMMA(nu/2.0_dp, a)
+CALL LANCZ_GAMMA(nu/2.0_dp, a)
 b = -LOG(a) + (nu/2.0_dp) * LOG((nu * ssq)/2.0_dp)
 c = -((nu/2.0_dp) + 1.0_dp) * LOG(x) - (nu * ssq)/(2.0_dp * x)
 fn_val = b + c
@@ -315,7 +315,22 @@ END SUBROUTINE logdichisq
 
 !===========================================================================================
 
-RECURSIVE SUBROUTINE lacz_gamma(x, fn_val)
+! Implementation of the Lanczos approximation of the gamma
+! function. Only use this code when the goal is to compute
+! the LOGgamma, i.e. log(lancz_gamma(x)). Imprecise as 
+! approximation for the gamma function for larger x.
+! See:
+! Lanczos, Cornelius (1964). "A Precision Approximation of the 
+! Gamma Function". SIAM Journal on Numerical Analysis series B 
+! (Society for Industrial and Applied Mathematics) 1: 86-96.
+
+! Input arguments:
+!   - x       : point to evaluate
+
+! Output arguments:
+!   - fn_val  : LOG of Lanczos approximation of the gamma function
+
+RECURSIVE SUBROUTINE lancz_gamma(x, fn_val)
 
 IMPLICIT NONE   
 
@@ -329,8 +344,9 @@ REAL(dp), INTENT(IN) :: x
 REAL(dp), INTENT(OUT) :: fn_val
 
 ! Local arguments:
-INTEGER :: i
+INTEGER :: i1
 REAL(dp) :: t, w, a, b
+REAL(dp), DIMENSION(1:8) :: c
 INTEGER, PARAMETER :: cg = 7
 REAL(dp), PARAMETER :: pi = 3.14159265358979324_dp
 REAL(dp), DIMENSION(0:8), PARAMETER :: p = &
@@ -341,19 +357,20 @@ REAL(dp), DIMENSION(0:8), PARAMETER :: p = &
 a = x
 
 IF (a < .5_dp) THEN
-        CALL lacz_gamma(1.0_dp - a, b)
+        CALL lancz_gamma(1.0_dp - a, b)
         fn_val = pi / (sin(pi*a) * b)
 ELSE
         a = a - 1.0_dp
-        t = p(0)
-        DO i = 1, cg+2
-                t = t + p(i)/(a+REAL(i,dp))
+        c(1) = a + 1.0_dp
+        DO i1 = 1,7
+          c(i1+1) = c(i1) + 1.0_dp
         END DO
+        t = p(0) + sum(p(1:8)/c)
         w = a + REAL(cg,dp) + .5_dp
-        fn_val = SQRT(2.0_dp*pi) * w**(a+.5_dp) * EXP(-w) * t
+        fn_val = sqrt(2.0_dp*pi) * w**(a+.5_dp) * exp(-w) * t
 END IF
 
-END SUBROUTINE lacz_gamma
+END SUBROUTINE lancz_gamma
 
 !===========================================================================================
 
