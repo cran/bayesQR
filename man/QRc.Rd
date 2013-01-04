@@ -5,52 +5,53 @@
   \code{QRc} implements a Bayesian method for estimating quantile regression parameters. This
   method uses the asymmetric Laplace distribution for this goal (see references). To improve 
   the speed of the routine, the Markov Chain Monte Carlo (MCMC) part of the algorithm is 
-  programmed in FORTRAN and is called from within the R function \code{QRc}.
+  programmed in Fortran and is called from within the R function \code{QRc}.
 }
 \usage{
   QRc(Data, Prior, Mcmc)
 }
 \arguments{
   \item{Data}{ list(y, X, p) }
-  \item{Prior}{ list(betabar, A, nu, ssq) }
-  \item{Mcmc}{ list(R, keep, step_beta, step_sigma) }
+  \item{Prior}{ list(beta0, V0, shape0, scale0) }
+  \item{Mcmc}{ list(R, keep) }
 }
 \value{
   A list containing:
+  \item{method}{ a string containing 'QRc' }
+  \item{p}{ the quantile that was estimated }
   \item{betadraw}{ R/keep x nvar(X) matrix of beta draws }
   \item{sigmadraw}{ R/keep vector of sigma draws }
-  \item{loglike}{ R/keep vector of evaluations of the loglikelihood }
-  \item{rejrate_beta}{ Rejection rate of the MH proposals for beta }
-  \item{rejrate_sigma}{ Rejection rate of the MH proposals for sigma }
 }
 \details{
   \tabular{ll}{
   Model: \tab y = X\emph{beta} + e \cr
          \tab \emph{e ~ ALD(location=0, scale=sigma, quantile=p)} \cr
-  Priors: \tab \emph{beta ~ N(betabar, A^(-1))} \cr
-          \tab \emph{sigma ~ (nu*ssq)/chisq_(nu).} \cr
+  Priors: \tab \emph{beta ~ N(beta0, V0)} \cr
+          \tab \emph{sigma ~ invGamma(shape0,scale0)} \cr
   }
   List arguments contain: \cr
   \itemize{
     \item \bold{X} : n x nvar(X) matrix of predictors (first column should be a vector of ones if intercept is desired)
     \item \bold{y} : n x 1 vector of observations (dependent variable)
     \item \bold{p} : quantile of interest (should be between 0 and 1)
-    \item \bold{betabar} : nvar(X) x 1 vector of prior means (default: 0)
-    \item \bold{A} : nvar(X) x nvar(X) prior precision matrix (inverse variancecovariance matrix) (default: .01*diag(ncol(X)))
-    \item \bold{nu} : d.f. parameter for Inverted Chi-square prior for sigma (default: 3)
-    \item \bold{ssq} : scale parameter for Inverted Chi-square prior for sigma (default: var(y))
+    \item \bold{beta0} : nvar(X) x 1 vector of prior means (default: 0)
+    \item \bold{V0} : nvar(X) x nvar(X) prior covariance matrix (default: 100*diag(ncol(X)))
+    \item \bold{shape0} : shape parameter for inverse Gamma prior for sigma (default: 0.01)
+    \item \bold{scale0} : scale parameter for inverse Gamma prior for sigma (default: 0.01)
     \item \bold{R} : number of MCMC draws
     \item \bold{keep} : thinning parameter, i.e. keep every keepth draw (default: 1)
-    \item \bold{step_beta} : MH step for beta, tune to get \emph{rejrate_beta} between 0.3 and 0.5
-    \item \bold{step_sigma} : MH step for sigma, tune to get \emph{rejrate_sigma} between 0.3 and 0.5
   }
 }
 \author{
   Dries F. Benoit, Rahim Al-Hamzawi, Keming Yu and Dirk Van den Poel
 }
-\references{ The algorithm is an implementation (with minor changes) of: \cr
+\references{ The algorithm is an improved (Gibbs instead of Metropolis-Hastings) implementation of: \cr
   Yu, K. and Moyeed, R. (2001). Bayesian quantile regression, \emph{Statistics 
-  and Probability Letters}, 54, 437-447.
+  and Probability Letters}, 54, 437-447. \cr
+  \cr
+  Also see: \cr
+  Kozumi, H. and Kobayashi, G. (2011). Gibbs sampling methods for Bayesian quantile regression,
+  \emph{Journal of Statistical Computation and Simulation}, 81(11), 1565-1578.
 }
 \examples{
 # Simulate data from heteroskedastic regression
@@ -65,8 +66,8 @@ plot(X[,2], y, main="", cex=.6, xlab="X")
 
 # Initialize the inputs for QRc
 Data = list(y=y, X=X, p=.05)
-Prior = list(betabar=c(rep(0,ncol(X))),A=.01*diag(ncol(X)), nu=3, ssq=var(y))
-Mcmc = list(R=5000, keep=1, step_beta=.01, step_sigma=.01)
+Prior = list(beta0=rep(0,ncol(X)),V0=100*diag(ncol(X)), shape0=0.01, scale0=0.01)
+Mcmc = list(R=5000, keep=1)
 
 # Write loop to analyze 5 quantiles
 for (i in 1:5) {

@@ -1,149 +1,146 @@
 ! Written by Dries F. Benoit 
 ! Faculty of economics and business administration
 ! Ghent University - BELGIUM
-! LAST UPDATE (dd/mm/yy): 29/03/11
+! LAST UPDATE (dd/mm/yy): 28/08/12
 
-! MCMC sampler for quantile regression. This code is based on:
+! MCMC sampler for quantile regression. This code is and improved
+! version (Gibbs instead of Metropolis-Hastings) of the mcmc sampler
+! proposed in:
 ! Yu K, Moyeed RA. 2001. Bayesian Quantile Regression. Statistics 
 ! and Probability Letters 54(4): 437-447.
 
 ! Input arguments:
-!	- n		: number of units of analysis
-!	- nvar		: number of independent variables
-!	- r		: number of MCMC iterations
-!	- keep		: thinning parameter of MCMC draws
-!	- y		: dependent variable
-!	- p		: quantile of interest
-!	- step1		: Metropolis-Hastings stepsize for beta
-!	- step2		: Metropolis-Hastings stepsize for sigma
-!	- x		: matrix of regressors (1:n, 1:nvar)
-!	- betabar	: prior mean for the regression parameters
-!	- rooti		: solve(chol2inv(chol(precision matrix)))
-!	- nu		: prior invChiSq d.f. parameter
-!	- ssq		: prior invChiSq scale parameter
+!	- n		      : number of units of analysis
+!	- k   		  : number of independent variables
+!	- r		      : number of MCMC iterations
+!	- keep		  : thinning parameter of MCMC draws
+!	- y		      : dependent variable
+!	- p		      : quantile of interest
+!	- x		      : matrix of regressors (1:n, 1:nvar)
+!	- beta0    	: prior mean for the regression parameters
+!	- V0 	    : prior covariance matrix for regression parameters
+! - shape0    : prior invGamma shape parameter for sigma
+! - scale0    : prior invGamma scale parameter for sigma
 
 ! Output arguments:
 !	- betadraw	: the matrix of regression parameter estimates
-!	- sigdraw	: the vector of scale estimates
-!	- loglike	: the vector of loglikelihoods over the subsequent draws
-!	- rejrate1	: the rejection rate of the MH-algorithm for beta
-!	- rejrate2	: the rejection rate of the MH-algorithm for sigma
+!	- sigmadraw	: the vector of scale estimates
 
 
-SUBROUTINE QRc_mcmc (n, nvar, r, keep, y, p, step1, step2, x, betabar, rooti, &
-                     nu, ssq, betadraw, sigdraw, loglike, rejrate1, rejrate2)
+subroutine QRc_mcmc (n, k, r, keep, y, p, x, beta0, V01, shape0, scale0, betadraw, sigmadraw)
 
-IMPLICIT NONE
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: n, r, nvar, keep
-REAL(dp), INTENT(IN) :: p, step1, step2, nu, ssq
-REAL(dp), INTENT(IN), DIMENSION(1:n) :: y
-REAL(dp), INTENT(IN), DIMENSION(1:nvar) :: betabar
-REAL(dp), INTENT(IN), DIMENSION(1:n,1:nvar) :: x
-REAL(dp), INTENT(IN), DIMENSION(1:nvar,1:nvar) :: rooti
+integer, intent(in) :: n, r, k, keep
+real(dp), intent(in) :: p, shape0, scale0 
+real(dp), intent(in), dimension(n) :: y
+real(dp), intent(in), dimension(k) :: beta0
+real(dp), intent(in), dimension(n,k) :: x
+real(dp), intent(in), dimension(k,k) :: V01
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: rejrate1, rejrate2
-REAL(dp), INTENT(OUT), DIMENSION(1:(r/keep)) :: sigdraw, loglike
-REAL(dp), INTENT(OUT), DIMENSION(1:(r/keep),1:nvar) :: betadraw
+real(dp), intent(out), dimension(r/keep) :: sigmadraw
+real(dp), intent(out), dimension(r/keep,k) :: betadraw
 
 ! Internal arguments:
-INTEGER :: i1, i2, naccept1, naccept2
-REAL(dp) :: oldsig, llold, u2, newsig, llnew, priornew, priorold, lldif, alpha, unif
-REAL(dp), DIMENSION(1:nvar) :: oldbeta, u1, newbeta
+integer :: i1, i2, i3, ok
+real(dp) :: theta, tausq, sigma, lambda, shapebar, scalebar, sigmanew
+real(dp), dimension(k) :: beta, betabar
+real(dp), dimension(n) :: v, mu 
+real(dp), dimension(k,k) :: Vbaro1 
 
+
+! -- USEFUL QUANTITIES 
+theta = (1.0_dp - 2.0_dp*p)/(p*(1.0_dp - p))
+tausq = 2.0_dp/(p*(1.0_dp - p))
 
 ! -- SET STARTING VALUES
-! ---- beta
-oldbeta = 0.0_dp
-
-! ---- sigma
-oldsig = 1.0_dp
-
-! ---- llold
-CALL evalALD(n, y, 0.0_dp, oldsig, p, llold)
-
-! ---- naccept
-naccept1 = 0
-naccept2 = 0
-
+beta = 0.0_dp
+v = 1.0_dp
+sigma = 1.0_dp
 
 ! -- START OF MCMC CHAIN
-DO i1 = 1,r
+do i1 = 1,r
 
-  ! draw new value for beta
-  DO i2 = 1,nvar
-    CALL rnorm(u1(i2))
-  END DO
-  newbeta = oldbeta + step1 * u1
+  ! Simulate new values for v 
+  !ooooooooooooooooooooooooooo
+    lambda = 2.0_dp/sigma + (theta**2.0_dp)/(tausq*sigma)
+    mu = sqrt(lambda/((y - matmul(X,beta))**2.0_dp/(tausq*sigma)))
+    where (mu < 1.0d-10) mu = 1.0d-10 !numerical stability
+    if (lambda < 1.0d-10) lambda = 1.0d-10 !numerical stability
+    do i2 = 1,n
+      call rinvgaus(mu(i2),lambda,v(i2))
+    enddo
+    v = 1.0_dp/v
+
+  ! Simulate new value for beta
+  !ooooooooooooooooooooooooooooo
+    Vbaro1 = 0.0_dp
+    do i2 = 1,n
+      ! Code below: outer/tensor product (see Numerical Recipes in Fortran 90)
+      Vbaro1 = Vbaro1 + spread(X(i2,:),dim=2,ncopies=k)*spread(X(i2,:),dim=1,ncopies=k)/&
+                        (tausq*sigma*v(i2))
+    enddo
+    Vbaro1 = Vbaro1 + V01
   
-  CALL evalALD(n, (y - MATMUL(x, newbeta)), 0.0_dp, oldsig, p, llnew)
-  CALL logdmnorm(nvar, newbeta, betabar, rooti, priornew)
-  CALL logdmnorm(nvar, oldbeta, betabar, rooti, priorold)
+    ! Invert Vbaro1
+    call dpotrf('U',k,Vbaro1,k,ok)
+    call dpotri('U',k,Vbaro1,k,ok)
+    do i2 = 1,(k-1)
+      do i3 = (i2+1),k
+        Vbaro1(i3,i2) = Vbaro1(i2,i3)
+      enddo
+    enddo
+  
+    betabar = 0.0_dp
+    do i2 = 1,n
+      betabar = betabar + X(i2,:)*(y(i2)-theta*v(i2))/(tausq*sigma*v(i2))
+    enddo
+    betabar = betabar + matmul(V01,beta0)
+    betabar = matmul(Vbaro1,betabar)
 
-  lldif = llnew + priornew - llold - priorold
+    ! Cholesky factorization of Vbaro1
+    call dpotrf('U',k,Vbaro1,k,ok)
+    do i2 = 1,(k-1)
+      do i3 = (i2+1),k
+        Vbaro1(i3,i2) = 0.0_dp 
+      enddo
+    enddo
 
-  ! accept or reject new draws
-  alpha = min(1.0_dp, exp(lldif))
+    do i2 = 1,k
+      call rnorm(beta(i2))
+    enddo
 
-  IF (alpha .LT. 1.0_dp) THEN
-    CALL RANDOM_NUMBER(unif)
-  ELSE
-    unif = 0.0_dp
-  END IF
+    beta = betabar + matmul(Vbaro1,beta)
 
-  ! update variables if accepted
-  IF (unif .LE. alpha) THEN
-    llold = llnew
-    oldbeta = newbeta
-    naccept1 = naccept1 + 1
-  END IF
+  ! Simulate new value for sigma
+  !oooooooooooooooooooooooooooooo
+    shapebar = (shape0*2.0_dp + 3.0_dp*real(n,dp))/2.0_dp
+    scalebar = (scale0*2.0_dp + sum(v)*2.0_dp + sum((y - matmul(X,beta) -&
+                theta*v)**2.0_dp/(tausq*v)))/2.0_dp
+    call rgamma(shapebar,1.0_dp/scalebar,sigmanew)
+    sigmanew = 1.0_dp/sigmanew
+    if (sigmanew < (4.0_dp*sigma)) sigma = sigmanew !numerical stability
 
+  ! Save current draw 
+  !ooooooooooooooooooo
+  if (mod(i1, keep) == 0) then
+    betadraw((i1/keep),1:k) = beta
+    sigmadraw(i1/keep) = sigma
+  endif
 
-  ! draw new value for sigma
-  newsig = -1.0_dp
-  DO WHILE (newsig .LE. 0.0_dp) 
-    CALL rnorm(u2)
-    newsig = oldsig + step2 * u2
-  END DO
+  ! Print information to console 
+  !oooooooooooooooooooooooooooooo
+  if (mod(i1, 500) == 0) then
+    !write(*,*) 'Current iteration :', i1
+    call intpr('Current iteration :', -1, i1, 1)
+  endif
 
-  CALL evalALD(n, (y - MATMUL(x, oldbeta)), 0.0_dp, newsig, p, llnew)
-  CALL logdichisq(newsig, nu, ssq, priornew)
-  CALL logdichisq(oldsig, nu, ssq, priorold)
-
-  lldif = llnew + priornew - llold - priorold
-
-  ! accept or reject new draws
-  alpha = min(1.0_dp, exp(lldif))
-
-  IF (alpha .LT. 1.0_dp) THEN
-    CALL RANDOM_NUMBER(unif)
-  ELSE
-    unif = 0.0_dp
-  END IF
-
-  ! update variables if accepted
-  IF (unif .LE. alpha) THEN
-    llold = llnew
-    oldsig = newsig
-    naccept2 = naccept2 + 1
-  END IF
-
-  IF (MOD(i1, keep) .EQ. 0) THEN
-    betadraw((i1/keep),1:nvar) = oldbeta
-    sigdraw(i1/keep) = oldsig
-    loglike(i1/keep) = llold
-  END IF
-
-END DO
-
-rejrate1 = 1.0_dp - REAL(naccept1,dp)/REAL(r,dp)
-rejrate2 = 1.0_dp - REAL(naccept2,dp)/REAL(r,dp)
+enddo
 
 
 !===========================================================================================
@@ -161,217 +158,160 @@ contains
 ! Output arguments:
 !	- fn_val	: random draw from N(0,1) distribution
 
-SUBROUTINE rnorm(fn_val)
+subroutine rnorm(fn_val)
 
-IMPLICIT NONE
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+integer, parameter :: dp = kind(1.0d0)
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-REAL(dp) :: pi
-REAL(dp), DIMENSION(1:2) :: u
+real(dp) :: pi
+real(dp), dimension(1:2) :: u
 
 pi = 3.14159265358979323846_dp
 
-CALL random_number(u)
+call random_number(u)
 
 fn_val = sqrt(-2*log(u(1))) * cos(2*pi*u(2))
 
-END SUBROUTINE rnorm
+end subroutine rnorm
+
 
 !===========================================================================================
 
-! Evaluate the likelihood of the ALD
-! Function returns the log likelihood
+
+! This code generates one random draw from the inverse Gaussian distribution.
+! The algorithm is based on: Michael, Schucany & Haas (1976), Generating
+! random variates using transformations with multiple roots, The
+! American Statistician, 30(2), p. 88-90.
+
+! This subroutine makes use of the subroutines:
+!	- rnorm	: Box-Muller method for random normal draws
 
 ! Input arguments:
-!	- n		: number of points to evaluate
-!	- u		: points to be evaluated
-!	- mu		: location parameter of the ALD
-!	- sigma		: scale parameter of the ALD
-!	- p		: quantile parameter of the ALD
+!	- mu		: mean parameter of the InvGaussian distribution
+!	- lambda	: shape parameter of the InvGaussian distribution
 
 ! Output arguments:
-!	- fn_val	: LL of the ALD evaluated at the u's
+!	- fn_val	: random InvGaussian variate
 
-! Note: expected input sizes are programmed oddly!
+subroutine rinvgaus (mu, lambda, fn_val)
 
-SUBROUTINE evalALD(n, u, mu, sigma, p, fn_val)
+implicit none
 
-IMPLICIT NONE
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+! Precision statement
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: n
-REAL(dp), INTENT(IN) :: mu, sigma, p
-REAL(dp), INTENT(IN), DIMENSION(1:n) :: u
+real(dp), intent(in) :: mu, lambda
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-REAL(dp), DIMENSION(1:n) :: u1, rho
+real(dp) :: nu, q, z
 
 
+call rnorm(nu)
 
-u1 = (u-mu)/sigma
-rho = (ABS(u1) + (2.0_dp*p-1.0_dp)*u1)/2.0_dp
+nu = nu*nu
+q = mu + (nu*mu*mu)/(lambda*2.0_dp) - &
+    mu/(2.0_dp*lambda)*sqrt(4.0_dp*mu*lambda*nu &
+    + mu*mu*nu*nu)
 
-fn_val = SUM(LOG(((p*(1.0_dp-p))/sigma) *EXP(-rho)))
+call random_number(z)
 
-END SUBROUTINE evalALD
+if (z .le. (mu/(mu+q))) then
+    fn_val = q
+else
+    fn_val = mu*mu/q
+end if
+
+end subroutine rinvgaus
+
 
 !===========================================================================================
 
-! Computes the log of a multi-variate normal density
-! Note: this is not vectorized input!!
+
+! Generates one random draw from the gamma distribution with
+! mean = shape*scale. The algorithm is based on Marsaglia & Tsang 
+! "A Simple Method for Gererating Gamma Variables" (2000)
+
+! This subroutine makes use of the subroutines 
+!	- rnor   	: generate one normal draw 
 
 ! Input arguments:
-! 	- k	:	number of dimensions
-! 	- x	:	point to evaluate
-! 	- mu	:	mean vector of mvn
-! 	- rooti	:	solve(chol2inv(chol(precision matrix)))
+!	- shape		: shape parameter of the gamma distribution
+!	- scale		: scale parameter of the gamma distribution
 
 ! Output arguments:
-!	- fn_val:	log of MVN(mu, rooti) evaluated at x
+!	- fn_val	: random gamma variate Gamma(shape, scale)
 
 
-SUBROUTINE logdmnorm (k, x, mu, rooti, fn_val)
+subroutine rgamma (shape, scale, fn_val)
 
-IMPLICIT NONE
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: k
-REAL(dp), INTENT(IN), DIMENSION(1:k) :: x, mu
-REAL(dp), INTENT(IN), DIMENSION(1:k,1:k) :: rooti
+real(dp), intent(in) :: shape, scale
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
-! Internal arguments:
-INTEGER :: i1
-REAL(dp) :: pi
-REAL(dp), DIMENSION(1:k) :: z, diag
-
+! Internal arguments
+real(dp) :: a, d, c, x, v, u
+logical :: flag 
 
 
-pi = 3.14159265358979323846_dp
+if (shape < 1.0_dp) then
+  a = shape + 1.0_dp
+else
+  a = shape
+end if
 
-! Define the diagonal of rooti
-DO i1 = 1,k
-  diag(i1) = rooti(i1,i1)
-END DO
+d = a - 1.0_dp/3.0_dp
+c = 1.0_dp/sqrt(9.0_dp*d)
 
-! Compute log of MVN
-z = MATMUL(TRANSPOSE(rooti), (x-mu))
-fn_val = REAL(-k,dp)/2.0_dp * LOG(2.0_dp*pi) - 0.5_dp * DOT_PRODUCT(z,z) + SUM(LOG(diag))
+flag = .true.
 
-END SUBROUTINE logdmnorm
+do while (flag)
+  v = 0.0_dp
 
-!===========================================================================================
+  do while (v <= 0.0_dp)
+    call rnorm(x)
+    v = (1.0_dp + c*x)**3.0_dp
+  end do
 
-! Computes the log of a inverted Chi-square distribution
+  call random_number(u)
 
-! Input arguments:
-! 	- x	:	point to evaluate
-! 	- nu	:	degrees of freedom parameter
-! 	- ssq	:	scale parameter
+  if (u < (1.0_dp-(0.0331_dp*(x**4.0_dp)))) then
+    fn_val = d*v
+    flag = .false.
+  end if
 
-! Output arguments:
-!	- fn_val:	log of invChisq(nu, ssq) evaluated at x
+  if (log(u) < ((0.5_dp*x*x) + (d*(1.0_dp - v + log(v))))) then
+    fn_val = d*v
+    flag = .false.
+  end if
+
+end do
 
 
-SUBROUTINE logdichisq (x, nu, ssq, fn_val)
+if (shape < 1.0_dp) then
+  call random_number(u)
+  fn_val = (fn_val * (u**(1.0_dp/shape))) * scale
+else
+  fn_val = fn_val * scale
+end if
 
-IMPLICIT NONE
 
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+end subroutine rgamma
 
-! Input arguments:
-REAL(dp), INTENT(IN) :: x, nu, ssq
-
-! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
-
-! Internal arguments:
-REAL(dp) :: a, b, c
-
-CALL LANCZ_GAMMA(nu/2.0_dp, a)
-b = -LOG(a) + (nu/2.0_dp) * LOG((nu * ssq)/2.0_dp)
-c = -((nu/2.0_dp) + 1.0_dp) * LOG(x) - (nu * ssq)/(2.0_dp * x)
-fn_val = b + c
-
-END SUBROUTINE logdichisq
-
-!===========================================================================================
-
-! Implementation of the Lanczos approximation of the gamma
-! function. Only use this code when the goal is to compute
-! the LOGgamma, i.e. log(lancz_gamma(x)). Imprecise as 
-! approximation for the gamma function for larger x.
-! See:
-! Lanczos, Cornelius (1964). "A Precision Approximation of the 
-! Gamma Function". SIAM Journal on Numerical Analysis series B 
-! (Society for Industrial and Applied Mathematics) 1: 86-96.
-
-! Input arguments:
-!   - x       : point to evaluate
-
-! Output arguments:
-!   - fn_val  : LOG of Lanczos approximation of the gamma function
-
-RECURSIVE SUBROUTINE lancz_gamma(x, fn_val)
-
-IMPLICIT NONE   
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
-! Input arguments:
-REAL(dp), INTENT(IN) :: x
-
-! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
-
-! Local arguments:
-INTEGER :: i1
-REAL(dp) :: t, w, a, b
-REAL(dp), DIMENSION(1:8) :: c
-INTEGER, PARAMETER :: cg = 7
-REAL(dp), PARAMETER :: pi = 3.14159265358979324_dp
-REAL(dp), DIMENSION(0:8), PARAMETER :: p = &
-        (/ 0.99999999999980993_dp, 676.5203681218851_dp, -1259.1392167224028_dp, &
-        771.32342877765313_dp, -176.61502916214059_dp, 12.507343278686905_dp, &
-        -0.13857109526572012_dp, 9.9843695780195716D-6, 1.5056327351493116D-7 /)
-
-a = x
-
-IF (a < .5_dp) THEN
-        CALL lancz_gamma(1.0_dp - a, b)
-        fn_val = pi / (sin(pi*a) * b)
-ELSE
-        a = a - 1.0_dp
-        c(1) = a + 1.0_dp
-        DO i1 = 1,7
-          c(i1+1) = c(i1) + 1.0_dp
-        END DO
-        t = p(0) + sum(p(1:8)/c)
-        w = a + REAL(cg,dp) + .5_dp
-        fn_val = sqrt(2.0_dp*pi) * w**(a+.5_dp) * exp(-w) * t
-END IF
-
-END SUBROUTINE lancz_gamma
-
-!===========================================================================================
-
-END SUBROUTINE QRc_mcmc
+end subroutine QRc_mcmc

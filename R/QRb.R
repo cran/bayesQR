@@ -15,7 +15,7 @@ QRb <- function(Data, Prior, Mcmc){
     if (is.null(Data$y)) {
         pandterm("Requires Data element y")
     }
-    y = Data$y
+    y = as.vector(Data$y)
     if ((sort(unique(y))[1]!=0)|(sort(unique(y))[2]!=1)) {
         pandterm("Unvalid dependent variable y")
     }
@@ -33,31 +33,30 @@ QRb <- function(Data, Prior, Mcmc){
     }
 
     if (missing(Prior)) {
-        betabar = c(rep(0, nvar))
-        A = 0.01 * diag(nvar)
+        beta0 = rep(0, nvar)
+        V0 = 100 * diag(nvar)
     }
     else {
-        if (is.null(Prior$betabar)) {
-            betabar = c(rep(0, nvar))
+        if (is.null(Prior$beta0)) {
+            beta0 = rep(0, nvar)
         }
         else {
-            betabar = Prior$betabar
+            beta0 = Prior$beta0
         }
-        if (is.null(Prior$A)) {
-            A = 0.01 * diag(nvar)
+        if (is.null(Prior$V0)) {
+            V0 = 100 * diag(nvar)
         }
         else {
-            A = Prior$A
+            V0 = Prior$V0
         }
     }
-    if (ncol(A) != nrow(A) || ncol(A) != nvar || nrow(A) != nvar) {
-        pandterm(paste("bad dimensions for A", dim(A)))
+    if (ncol(V0) != nrow(V0) || ncol(V0) != nvar || nrow(V0) != nvar) {
+        pandterm(paste("bad dimensions for V0", dim(V0)))
     }
-    if (length(betabar) != nvar) {
-        pandterm(paste("betabar wrong length, length= ", length(betabar)))
+    if (length(beta0) != nvar) {
+        pandterm(paste("beta0 wrong length, length= ", length(beta0)))
     }
-    Ai = chol2inv(chol(A))
-    rooti = solve(chol(Ai))
+    V0i = chol2inv(chol(V0))
 
     if (missing(Mcmc)) {
         pandterm("Requires Mcmc argument")
@@ -75,12 +74,6 @@ QRb <- function(Data, Prior, Mcmc){
         else {
             keep = Mcmc$keep
         }
-        if (is.null(Mcmc$step)) {
-            pandterm("Requires Mcmc element step")
-        }
-        else {
-            step = Mcmc$step
-        }
     }
 
 
@@ -93,19 +86,18 @@ QRb <- function(Data, Prior, Mcmc){
     keep <- as.integer(keep)
     y <- as.integer(y)
     p <- as.double(p)
-    step <- as.double(step)
     X <- as.double(X)
-    betabar <- as.double(betabar)
-    rooti <- as.double(rooti)
+    beta0 <- as.double(beta0)
+    V0i <- as.double(V0i)
     betadraw <- double(nvar*r/keep)
-    loglike <- double(r/keep)
-    rejrate <- double(1)
 
-    ## Call FORTRAN routine
-    fn_val <- .Fortran("QRb_mcmc", n, nvar, r, keep, y, p, step, X, betabar, 
-                                   rooti, betadraw, loglike, rejrate)
+    ## Call Fortran routine
+    fn_val <- .Fortran("QRb_mcmc", n, nvar, r, keep, y, p, X, beta0, V0i, betadraw)
 
 
-    return(list(betadraw=matrix(fn_val[[11]], nrow=r/keep, ncol=nvar), 
-                loglike=fn_val[[12]], rejrate=fn_val[[13]]))
+    return(list(method="QRb",
+		            p=p,
+		            betadraw=matrix(fn_val[[10]], nrow=r/keep, ncol=nvar)
+		            )
+					)
 }

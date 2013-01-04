@@ -1,4 +1,4 @@
-QRc.AL <- function(Data, Prior, Mcmc){
+QRb.AL <- function(Data, Prior, Mcmc){
 
 # Error handling:
 
@@ -15,10 +15,14 @@ QRc.AL <- function(Data, Prior, Mcmc){
     if (is.null(Data$y)) {
         pandterm("Requires Data element y")
     }
-    y = Data$y
+    y = as.vector(Data$y)
+    if ((sort(unique(y))[1]!=0)|(sort(unique(y))[2]!=1)) {
+        pandterm("Unvalid dependent variable y")
+    }
     nvar = ncol(X)
     n = length(y)
     if (n != nrow(X)) {
+		cat("length y: ",n, "ncol(X): ", ncol(X))
         pandterm("length(y) ne nrow(X)")
     }
     if (is.null(Data$p)) {
@@ -30,35 +34,21 @@ QRc.AL <- function(Data, Prior, Mcmc){
     }
 
     if (missing(Prior)) {
-	a = 0.01
-	b = 0.01
 	c = 0.01
 	d = 0.01
     }
     else {
-        if (is.null(Prior$sigma_shape)) {
-	    a = 0.01
-        }
-        else {
-            a = Prior$sigma_shape
-        }
-        if (is.null(Prior$sigma_scale)) {
-	    b = 0.01
-        }
-        else {
-            b = Prior$sigma_scale
-        }
-        if (is.null(Prior$etasq_shape)) {
+        if (is.null(Prior$lambdasq_shape)) {
 	    c = 0.01
         }
         else {
-            c = Prior$etasq_shape
+            c = Prior$lambdasq_shape
         }
-        if (is.null(Prior$etasq_scale)) {
+        if (is.null(Prior$lambdasq_scale)) {
 	    d = 1/0.01
         }
         else {
-            d = 1/Prior$etasq_scale
+            d = 1/Prior$lambdasq_scale
         }
     }
 
@@ -88,23 +78,19 @@ QRc.AL <- function(Data, Prior, Mcmc){
     nvar <- as.integer(nvar)
     r <- as.integer(r)
     keep <- as.integer(keep)
-    y <- as.double(y)
+    y <- as.integer(y)
     p <- as.double(p)
     x <- as.double(X)
-    a <- as.double(a)
-    b <- as.double(b)
     c <- as.double(c)
     d <- as.double(d)
     betadraw <- double(nvar*r/keep)
-    sigmadraw <- double(r/keep)
 
     ## Call Fortran routine
-    fn_val <- .Fortran("QRc_AL_mcmc",n, nvar, r, keep, y, p, x, a, b, c, d, betadraw, sigmadraw) 
+    fn_val <- .Fortran("QRb_AL_mcmc", n, nvar, r, keep, y, p, x, c, d, betadraw) 
 
-    return(list(method="QRc.AL",
+    return(list(method="QRb.AL",
 		            p=p,
-		            betadraw=matrix(fn_val[[12]], nrow=r/keep, ncol=nvar),
-		            sigmadraw=fn_val[[13]]
+		            betadraw=matrix(fn_val[[10]], nrow=r/keep, ncol=nvar)
 		            )
 					)
 }

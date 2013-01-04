@@ -1,119 +1,144 @@
 ! Written by Dries F. Benoit 
 ! Faculty of economics and business administration
 ! Ghent University - BELGIUM
-! LAST UPDATE (dd/mm/yy): 29/03/11
+! LAST UPDATE (dd/mm/yy): 28/08/12
 
-! MCMC sampler for binary quantile regression. This code is based on:
-!! Benoit, D.F. and Van den Poel, D. (2011). Binary quantile
-!! regression: A Bayesian approach based on the Asymmetric Laplace
-!! distribution. Journal of Applied Econometrics (in press).
+! MCMC sampler for quantile regression. This code is and improved
+! version (Gibbs instead of Metropolis-Hastings) of the mcmc sampler
+! proposed in:
+! Yu K, Moyeed RA. 2001. Bayesian Quantile Regression. Statistics 
+! and Probability Letters 54(4): 437-447.
 
 ! Input arguments:
-!	- n		: number of units of analysis
-!	- nvar		: number of independent variables
-!	- r		: number of MCMC iterations
-!	- keep		: thinning parameter of MCMC draws
-!	- y		: binary dependent variable
-!	- p		: quantile of interest
-!	- step		: Metropolis-Hastings stepsize for beta
-!	- x		: matrix of regressors (1:n, 1:nvar)
-!	- betabar	: prior mean for the regression parameters
-!	- rooti		: solve(chol2inv(chol(prior precision matrix)))
+!	- n		      : number of units of analysis
+!	- k   		  : number of independent variables
+!	- r		      : number of MCMC iterations
+!	- keep		  : thinning parameter of MCMC draws
+!	- y		      : dependent variable
+!	- p		      : quantile of interest
+!	- x		      : matrix of regressors (1:n, 1:nvar)
+!	- beta0    	: prior mean for the regression parameters
+!	- V0i 	    : prior inverse covariance matrix for regression parameters
 
 ! Output arguments:
 !	- betadraw	: the matrix of regression parameter estimates
-!	- loglike	: the vector of loglikelihoods over the subsequent draws
-!	- rejrate	: the rejection rate of the MH-algorithm for beta
 
 
-SUBROUTINE QRb_mcmc (n, nvar, r, keep, y, p, step, x, betabar, rooti, betadraw,loglike, rejrate)
+subroutine QRb_mcmc (n, k, r, keep, y, p, x, beta0, V0i, betadraw)
 
-IMPLICIT NONE
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: n, r, nvar, keep
-INTEGER, INTENT(IN), DIMENSION(1:n) :: y
-REAL(dp), INTENT(IN) :: p, step
-REAL(dp), INTENT(IN), DIMENSION(1:nvar) :: betabar
-REAL(dp), INTENT(IN), DIMENSION(1:n,1:nvar) :: x
-REAL(dp), INTENT(IN), DIMENSION(1:nvar,1:nvar) :: rooti
+integer, intent(in) :: n, r, k, keep
+integer, intent(in), dimension(n) :: y
+real(dp), intent(in) :: p
+real(dp), intent(in), dimension(k) :: beta0
+real(dp), intent(in), dimension(n,k) :: x
+real(dp), intent(in), dimension(k,k) :: V0i
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: rejrate
-REAL(dp), INTENT(OUT), DIMENSION(1:(r/keep)) :: loglike
-REAL(dp), INTENT(OUT), DIMENSION(1:(r/keep),1:nvar) :: betadraw
+real(dp), intent(out), dimension(r/keep,k) :: betadraw
 
 ! Internal arguments:
-INTEGER :: i1, i2, naccept
-REAL(dp) :: llold, u2, llnew, priornew, priorold, lldif, alpha, unif
-REAL(dp), DIMENSION(1:n) :: z
-REAL(dp), DIMENSION(1:nvar) :: oldbeta, u1, newbeta
+integer :: i1, i2, i3, ok
+real(dp) :: theta, tausq, lambda
+real(dp), dimension(k) :: beta, betabar
+real(dp), dimension(n) :: v, ystar, Xbeta, mu
+real(dp), dimension(k,k) :: Vbaro1 
 
+
+! -- USEFUL QUANTITIES 
+theta = (1.0_dp - 2.0_dp*p)/(p*(1.0_dp - p))
+tausq = 2.0_dp/(p*(1.0_dp - p))
 
 ! -- SET STARTING VALUES
-! ---- beta
-oldbeta = 0.0_dp
-
-! ---- latent z
-z = 0.0_dp
-
-! ---- llold
-CALL evalALD(n, z, 0.0_dp, 1.0_dp, p, llold)
-
-! ---- naccept
-naccept = 0
-
+beta = 0.0_dp
+v = 1.0_dp
+ystar = 0.0_dp
 
 ! -- START OF MCMC CHAIN
-DO i1 = 1,r
+do i1 = 1,r
+  ! Simulate new values for ystar 
+  !ooooooooooooooooooooooooooooooo
+    Xbeta = matmul(X,beta)
+    do i2 = 1,n
+      if (y(i2) == 0) then
+        call rtnorm_geweke(0.0_dp, .false., Xbeta(i2)+theta*v(i2), sqrt(tausq)&
+                           *sqrt(v(i2)), ystar(i2))
+      else
+        call rtnorm_geweke(0.0_dp, .true., Xbeta(i2)+theta*v(i2), sqrt(tausq)&
+                           *sqrt(v(i2)), ystar(i2))
+      endif
+    enddo
+    
 
-  ! draw new value for beta
-  DO i2 = 1,nvar
-    CALL rnorm(u1(i2))
-  END DO
-  newbeta = oldbeta + step * u1
+  ! Simulate new values for v 
+  !ooooooooooooooooooooooooooo
+    lambda = 2.0_dp + (theta**2.0_dp)/tausq
+    mu = sqrt(lambda/((ystar - matmul(X,beta))**2.0_dp/tausq))
+    where (mu < 1.0d-10) mu = 1.0d-10 !numerical stability
+    do i2 = 1,n
+      call rinvgaus(mu(i2),lambda,v(i2))
+    enddo
+    v = 1.0_dp/v
+
+  ! Simulate new value for beta
+  !ooooooooooooooooooooooooooooo
+    Vbaro1 = 0.0_dp
+    do i2 = 1,n
+      ! Code below: outer/tensor product (see Numerical Recipes in Fortran 90)
+      Vbaro1 = Vbaro1 + spread(X(i2,:),dim=2,ncopies=k)*spread(X(i2,:),dim=1,&
+                        ncopies=k)/(tausq*v(i2))
+    enddo
+    Vbaro1 = Vbaro1 + V0i
   
-  CALL evalALD(n, (z - MATMUL(x, newbeta)), 0.0_dp, 1.0_dp, p, llnew)
-  CALL logdmnorm(nvar, newbeta, betabar, rooti, priornew)
-  CALL logdmnorm(nvar, oldbeta, betabar, rooti, priorold)
+    ! Invert Vbaro1
+    call dpotrf('U',k,Vbaro1,k,ok)
+    call dpotri('U',k,Vbaro1,k,ok)
+    do i2 = 1,(k-1)
+      do i3 = (i2+1),k
+        Vbaro1(i3,i2) = Vbaro1(i2,i3)
+      enddo
+    enddo
+  
+    betabar = 0.0_dp
+    do i2 = 1,n
+      betabar = betabar + X(i2,:)*(ystar(i2)-theta*v(i2))/(tausq*v(i2))
+    enddo
+    betabar = betabar + matmul(V0i,beta0)
+    betabar = matmul(Vbaro1,betabar)
 
-  lldif = llnew + priornew - llold - priorold
+    ! Cholesky factorization of Vbaro1
+    call dpotrf('U',k,Vbaro1,k,ok)
+    do i2 = 1,(k-1)
+      do i3 = (i2+1),k
+        Vbaro1(i3,i2) = 0.0_dp 
+      enddo
+    enddo
 
-  ! accept or reject new draws
-  alpha = MIN(1.0_dp, EXP(lldif))
+    do i2 = 1,k
+      call rnorm(beta(i2))
+    enddo
 
-  IF (alpha .LT. 1.0_dp) THEN
-    CALL RANDOM_NUMBER(unif)
-  ELSE
-    unif = 0.0_dp
-  END IF
+    beta = betabar + matmul(Vbaro1,beta)
 
-  ! update variables if accepted
-  IF (unif .LE. alpha) THEN
-    llold = llnew
-    oldbeta = newbeta
-    naccept = naccept + 1
-  END IF
+  ! Save current draw 
+  !ooooooooooooooooooo
+  if (mod(i1, keep) == 0) then
+    betadraw((i1/keep),1:k) = beta
+  endif
 
-  ! draw latent z
-  DO i2 = 1,n
-    CALL  rTALD (y(i2), DOT_PRODUCT(x(i2,1:nvar),oldbeta), 1.0_dp, p, z(i2))
-  END DO
+  ! Print information to console 
+  !oooooooooooooooooooooooooooooo
+  if (mod(i1, 500) == 0) then
+    !write(*,*) 'Current iteration :', i1
+    call intpr('Current iteration :', -1, i1, 1)
+  endif
 
-  CALL evalALD(n, (z - MATMUL(x, newbeta)), 0.0_dp, 1.0_dp, p, llold)
-
-  IF (MOD(i1, keep) .EQ. 0) THEN
-    betadraw((i1/keep),1:nvar) = oldbeta
-    loglike(i1/keep) = llold
-  END IF
-
-END DO
-
-rejrate = 1.0_dp - REAL(naccept,dp)/REAL(r,dp)
+enddo
 
 
 !===========================================================================================
@@ -131,269 +156,165 @@ contains
 ! Output arguments:
 !	- fn_val	: random draw from N(0,1) distribution
 
-SUBROUTINE rnorm(fn_val)
+subroutine rnorm(fn_val)
 
-IMPLICIT NONE
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+integer, parameter :: dp = kind(1.0d0)
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-REAL(dp) :: pi
-REAL(dp), DIMENSION(1:2) :: u
+real(dp) :: pi
+real(dp), dimension(1:2) :: u
 
 pi = 3.14159265358979323846_dp
 
-CALL random_number(u)
+call random_number(u)
 
 fn_val = sqrt(-2*log(u(1))) * cos(2*pi*u(2))
 
-END SUBROUTINE rnorm
+end subroutine rnorm
+
 
 !===========================================================================================
 
-! Evaluate the likelihood of the ALD
-! Function returns the log likelihood
+
+! This code generates one random draw from the inverse Gaussian distribution.
+! The algorithm is based on: Michael, Schucany & Haas (1976), Generating
+! random variates using transformations with multiple roots, The
+! American Statistician, 30(2), p. 88-90.
+
+! This subroutine makes use of the subroutines:
+!	- rnorm	: Box-Muller method for random normal draws
 
 ! Input arguments:
-!	- n		: number of points to evaluate
-!	- u		: points to be evaluated
-!	- mu		: location parameter of the ALD
-!	- sigma		: scale parameter of the ALD
-!	- p		: quantile parameter of the ALD
+!	- mu		: mean parameter of the InvGaussian distribution
+!	- lambda	: shape parameter of the InvGaussian distribution
 
 ! Output arguments:
-!	- fn_val	: LL of the ALD evaluated at the u's
+!	- fn_val	: random InvGaussian variate
 
-! Note: expected input sizes are programmed oddly!
+subroutine rinvgaus (mu, lambda, fn_val)
 
+implicit none
 
-
-SUBROUTINE evalALD(n, u, mu, sigma, p, fn_val)
-
-IMPLICIT NONE
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+! Precision statement
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: n
-REAL(dp), INTENT(IN) :: mu, sigma, p
-REAL(dp), INTENT(IN), DIMENSION(1:n) :: u
+real(dp), intent(in) :: mu, lambda
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-REAL(dp), DIMENSION(1:n) :: u1, rho
+real(dp) :: nu, q, z
 
 
+call rnorm(nu)
 
-u1 = (u-mu)/sigma
-rho = (ABS(u1) + (2.0_dp*p-1.0_dp)*u1)/2.0_dp
+nu = nu*nu
+q = mu + (nu*mu*mu)/(lambda*2.0_dp) - &
+    mu/(2.0_dp*lambda)*sqrt(4.0_dp*mu*lambda*nu &
+    + mu*mu*nu*nu)
 
-fn_val = SUM(LOG(((p*(1.0_dp-p))/sigma) *EXP(-rho)))
+call random_number(z)
 
-END SUBROUTINE evalALD
+if (z .le. (mu/(mu+q))) then
+    fn_val = q
+else
+    fn_val = mu*mu/q
+end if
+
+end subroutine rinvgaus
+
 
 !===========================================================================================
 
-! Generate random number from the Truncated Asymmetric Laplace distribution
-! Truncation depends on:
-! 	IF (y==0) THEN (fn_val<0)
-! 	IF (y==1) THEN (fn_val < 0)
 
-! This subroutine makes use of the subroutines
-!	pALD		: distribution function of the ALD
-!	qALD		: quantile function of the ALD
+! Returns one draw from the truncated normal distribution
+
+! Algorithm based on:
+! Geweke, J. (1991). Efficient Simulation From the Multivariate Normal 
+! and Student t-Distributions Subject to Linear Constraints, in Computer 
+! Sciences and Statistics Proceedings of the 23d Symposium on the 
+! Interface, pp. 571-578.
+
+! This subroutine makes use of the subroutines:
+!	- rnorm		: Box-Muller method for random normal draws
 
 ! Input arguments:
-!	- y		: defines truncation
-!	- mu		: location parameter of the ALD
-!	- sigma		: scale parameter of the ALD
-!	- p		: quantile parameter of the ALD
-
-! Output arguments:
-!	- fn_val	: random number from truncated ALD
-
+! a             -	trucation point
+! lb	        -	logical:        if .TRUE. then trucation (a,+Inf)
+!		        		if .FALSE. then truncation (-Inf,a)
+! mu	        -	mean of trunc normal
+! sigma         -	sd of trunc normal
+! fn_val        -	random draw from trunc normal
 
 
-SUBROUTINE rTALD (y, mu, sigma, p, fn_val)
-
-IMPLICIT NONE
+subroutine rtnorm_geweke(a, lb, mu, sigma, fn_val)
+  
+implicit none
 
 ! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
+integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
-INTEGER, INTENT(IN) :: y
-REAL(dp), INTENT(IN) :: mu, sigma, p
+logical, intent(in) :: lb
+real(dp), intent(in) :: a, mu, sigma
 
 ! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
+real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-REAL(dp) :: nulp, gr, min, max, u
+real(dp) :: z, phi_z, az, c
+real(dp), dimension(1:2) :: u
 
 
+! Rescale truncation point
+az=(a-mu)/sigma
 
-nulp = -mu/sigma
+if (lb) then
+    c=az
+  else 
+    c=-az
+endif
 
-IF ((y == 0) .AND. (nulp <= 0.0_dp)) THEN
-  CALL RANDOM_NUMBER(u)
-  fn_val = -(ABS(nulp) + (-LOG(u))/(1.0_dp-p))
-ELSE IF ((y == 1) .AND. (nulp >= 0.0_dp)) THEN
-  CALL RANDOM_NUMBER(u)
-  fn_val = nulp + (-LOG(u))/p
-ELSE
-  CALL PALD(nulp, 0.0_dp, 1.0_dp, p, gr)
-  IF (y == 1) THEN
-    min = gr
-    max = 1.0_dp
-  ELSE
-    min = 0.0_dp
-    max = gr
-  END IF
+if (c<.45_dp) then
 
-  CALL RANDOM_NUMBER(u)
-  u = min + (max-min)*u
-  CALL QALD(u, 0.0_dp, 1.0_dp, p, fn_val)
-END IF
+  ! normal rejection sampling
+  do
+    call rnorm(u(1))
+    
+    if (u(1)>c) exit
+  end do
+  z=u(1)
 
-fn_val = mu + fn_val*sigma
+else
 
-END SUBROUTINE rTALD
+  ! exponential rejection sampling
+  do
+    ! Create exponential random variate z
+    ! from uniform random variate u(1)
+    call random_number(u)
+    z = -log(u(1))/c
 
-!===========================================================================================
+    phi_z = exp(-.5_dp * z**2_dp) !see Geweke
+    if (u(2)<phi_z) exit
+  end do
+  z=z+c
 
-! This code evaluates the Asymmetric Laplace distribution function
+end if
 
-! Input arguments:
-!	- q		: location to be evaluated
-!	- mu		: location parameter of the ALD
-!	- sigma		: scale parameter of the ALD
-!	- p		: quantile parameter of the ALD
+if (lb) then 
+  fn_val = mu + sigma*z
+else
+  fn_val = mu - sigma*z
+end if
 
-! Output arguments:
-!	- fn_val	: prob(-Inf, p] under ALD(mu, sigma, p)
+end subroutine rtnorm_geweke
 
-
-
-SUBROUTINE pALD(q, mu, sigma, p, fn_val)
-
-IMPLICIT NONE
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
-! Input arguments:
-REAL(dp), INTENT(IN) :: q, mu, sigma, p
-
-! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
-
-
-
-IF (q <= mu) THEN
-  fn_val = p * EXP((1.0_dp-p) / sigma * (q - mu))
-ELSE
-  fn_val = 1.0_dp - ((1.0_dp-p) * EXP(-p / sigma * (q - mu)))
-END IF
-
-END SUBROUTINE pALD
-
-!===========================================================================================
-
-! This function evaluates the Asymmetric Laplace quantile function
-
-! Input arguments:
-!	- pp		: quantile to be evaluated
-!	- mu		: location parameter of the ALD
-!	- sigma		: scale parameter of the ALD
-!	- p		: quantile parameter of the ALD
-
-! Output arguments:
-!	- fn_val	: evaluation of quantile function for ALD(mu, sigma, p)
-
-
-
-SUBROUTINE qALD(pp, mu, sigma, p, fn_val)
-
-IMPLICIT NONE
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
-! Input arguments:
-REAL(dp), INTENT(IN) :: pp, mu, sigma, p
-
-! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
-
-
-IF (pp <= p) THEN
-  fn_val = mu + (sigma / (1.0_dp - p) * LOG(pp/p))
-ELSE
-  fn_val = mu - (sigma / p * LOG((1.0_dp - pp)/(1.0_dp - p)))
-END IF
-
-END SUBROUTINE qALD
-
-!===========================================================================================
-
-! Computes the log of a multi-variate normal density
-! Note: this is not vectorized input!!
-
-! Input arguments:
-! 	- k	:	number of dimensions
-! 	- x	:	point to evaluate
-! 	- mu	:	mean vector of mvn
-! 	- rooti	:	solve(chol2inv(chol(precision matrix)))
-
-! Output arguments:
-!	- fn_val:	log of MVN(mu, rooti) evaluated at x
-
-
-
-SUBROUTINE logdmnorm (k, x, mu, rooti, fn_val)
-
-IMPLICIT NONE
-
-! Precision statement:
-INTEGER, PARAMETER :: dp = KIND(1.0d0)
-
-! Input arguments:
-INTEGER, INTENT(IN) :: k
-REAL(dp), INTENT(IN), DIMENSION(1:k) :: x, mu
-REAL(dp), INTENT(IN), DIMENSION(1:k,1:k) :: rooti
-
-! Output arguments:
-REAL(dp), INTENT(OUT) :: fn_val
-
-! Internal arguments:
-INTEGER :: i1
-REAL(dp) :: pi
-REAL(dp), DIMENSION(1:k) :: z, diag
-
-
-
-pi = 3.14159265358979323846_dp
-
-! Define the diagonal of rooti
-DO i1 = 1,k
-  diag(i1) = rooti(i1,i1)
-END DO
-
-! Compute log of MVN
-z = MATMUL(TRANSPOSE(rooti), (x-mu))
-fn_val = REAL(-k,dp)/2.0_dp * LOG(2.0_dp*pi) - 0.5_dp * DOT_PRODUCT(z,z) + SUM(LOG(diag))
-
-END SUBROUTINE logdmnorm
-
-!===========================================================================================
-
-
-END SUBROUTINE QRb_mcmc
+end subroutine QRb_mcmc

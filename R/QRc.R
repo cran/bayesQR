@@ -1,7 +1,6 @@
 QRc <- function(Data, Prior, Mcmc){
 
 # Error handling:
-
     pandterm = function(message) {
         stop(message, call. = FALSE)
     }
@@ -30,45 +29,44 @@ QRc <- function(Data, Prior, Mcmc){
     }
 
     if (missing(Prior)) {
-        betabar = c(rep(0, nvar))
-        A = 0.01 * diag(nvar)
-        nu = 3
-        ssq = var(y)
+        beta0 = c(rep(0, nvar))
+        V0 = 100 * diag(nvar)
+				shape0 = 0.01 
+				scale0 = 0.01
     }
     else {
-        if (is.null(Prior$betabar)) {
-            betabar = c(rep(0, nvar))
+        if (is.null(Prior$beta0)) {
+            beta0 = c(rep(0, nvar))
         }
         else {
-            betabar = Prior$betabar
+            beta0 = Prior$beta0
         }
-        if (is.null(Prior$A)) {
-            A = 0.01 * diag(nvar)
-        }
-        else {
-            A = Prior$A
-        }
-        if (is.null(Prior$nu)) {
-            nu = 3
+        if (is.null(Prior$V0)) {
+            V0 = 100 * diag(nvar)
         }
         else {
-            nu = Prior$nu
+            V0 = Prior$V0
         }
-        if (is.null(Prior$ssq)) {
-            ssq = var(y)
+        if (is.null(Prior$shape0)) {
+            shape0 = 0.01 
         }
         else {
-            ssq = Prior$ssq
+            shape0 = Prior$shape0
+        }
+        if (is.null(Prior$scale0)) {
+				    scale0 = 0.01
+        }
+        else {
+            scale0 = Prior$scale0
         }
     }
-    if (ncol(A) != nrow(A) || ncol(A) != nvar || nrow(A) != nvar) {
-        pandterm(paste("bad dimensions for A", dim(A)))
+    if (ncol(V0) != nrow(V0) || ncol(V0) != nvar || nrow(V0) != nvar) {
+        pandterm(paste("bad dimensions for V0", dim(V0)))
     }
-    if (length(betabar) != nvar) {
-        pandterm(paste("betabar wrong length, length= ", length(betabar)))
+    if (length(beta0) != nvar) {
+        pandterm(paste("beta0 wrong length, length= ", length(beta0)))
     }
-    Ai = chol2inv(chol(A))
-    rooti = solve(chol(Ai))
+    V0i = chol2inv(chol(V0))
 
     if (missing(Mcmc)) {
         pandterm("Requires Mcmc argument")
@@ -86,18 +84,6 @@ QRc <- function(Data, Prior, Mcmc){
         else {
             keep = Mcmc$keep
         }
-        if (is.null(Mcmc$step_beta)) {
-            pandterm("Requires Mcmc element step_beta")
-        }
-        else {
-            step1 = Mcmc$step_beta
-        }
-        if (is.null(Mcmc$step_sigma)) {
-            pandterm("Requires Mcmc element step_sigma")
-        }
-        else {
-            step2 = Mcmc$step_sigma
-        }
     }
 
 
@@ -110,25 +96,23 @@ QRc <- function(Data, Prior, Mcmc){
     keep <- as.integer(keep)
     y <- as.double(y)
     p <- as.double(p)
-    step1 <- as.double(step1)
-    step2 <- as.double(step2)
     X <- as.double(X)
-    betabar <- as.double(betabar)
-    rooti <- as.double(rooti)
-    nu <- as.double(nu)
-    ssq <- as.double(ssq)
+    beta0 <- as.double(beta0)
+    V0i <- as.double(V0i)
+		shape0 <- as.double(shape0)
+		scale0 <- as.double(scale0)
     betadraw <- double(nvar*r/keep)
-    sigdraw <- double(r/keep)
-    loglike <- double(r/keep)
-    rejrate1 <- double(1)
-    rejrate2 <- double(1)
+    sigmadraw <- double(r/keep)
 
-    ## Call FORTRAN routine
-    fn_val <- .Fortran("QRc_mcmc", n, nvar, r, keep, y, p, step1, step2, X, betabar, 
-			rooti, nu, ssq, betadraw, sigdraw, loglike, rejrate1, rejrate2)
+    ## Call Fortran routine
+    fn_val <- .Fortran("QRc_mcmc", n, nvar, r, keep, y, p, X, beta0, V0i,
+			                             shape0, scale0, betadraw, sigmadraw)
 
 
-    return(list(betadraw=matrix(fn_val[[14]], nrow=r/keep, ncol=nvar), 
-			sigmadraw=fn_val[[15]], loglike=fn_val[[16]], 
-			rejrate_beta=fn_val[[17]],rejrate_sigma=fn_val[[18]]))
+    return(list(method="QRc",
+		            p=p, 
+								betadraw=matrix(fn_val[[12]], nrow=r/keep,ncol=nvar),
+								sigmadraw=fn_val[[13]]
+								)
+					)
 }
