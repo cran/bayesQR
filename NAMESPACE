@@ -1,2 +1,11 @@
+## load shared objects
 useDynLib(bayesQR)
-export(QRc,QRb,QRc.AL,QRb.AL,QRseq,QRplot,QRb.pred,QRsummary)
+
+## functions available to user
+export(bayesQR, prior)
+
+## register S3 methods
+S3method(plot, bayesQR)
+S3method(predict, bayesQR)
+S3method(print, bayesQR.summary)
+S3method(summary, bayesQR)

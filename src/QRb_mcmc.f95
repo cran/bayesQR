@@ -79,7 +79,6 @@ do i1 = 1,r
   !ooooooooooooooooooooooooooo
     lambda = 2.0_dp + (theta**2.0_dp)/tausq
     mu = sqrt(lambda/((ystar - matmul(X,beta))**2.0_dp/tausq))
-    where (mu < 1.0d-10) mu = 1.0d-10 !numerical stability
     do i2 = 1,n
       call rinvgaus(mu(i2),lambda,v(i2))
     enddo

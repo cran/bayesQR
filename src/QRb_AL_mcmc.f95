@@ -109,6 +109,8 @@ do i1 = 1,r
     shape = 1.0_dp + c
     do i2 = 1,k
         scale = 1.0_dp/(s(i2)/2.0_dp + d)
+        if (scale < 1.0d-2) scale = 1.0d-2 !numerical stability
+        if (scale > 1.0d2) scale = 1.0d2 !numerical stability
         call rgamma(shape,scale,etasq(i2))
     enddo
 

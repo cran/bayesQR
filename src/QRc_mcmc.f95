@@ -48,7 +48,7 @@ real(dp), intent(out), dimension(r/keep,k) :: betadraw
 
 ! Internal arguments:
 integer :: i1, i2, i3, ok
-real(dp) :: theta, tausq, sigma, lambda, shapebar, scalebar, sigmanew
+real(dp) :: theta, tausq, sigma, lambda, shapebar, scalebar
 real(dp), dimension(k) :: beta, betabar
 real(dp), dimension(n) :: v, mu 
 real(dp), dimension(k,k) :: Vbaro1 
@@ -70,8 +70,6 @@ do i1 = 1,r
   !ooooooooooooooooooooooooooo
     lambda = 2.0_dp/sigma + (theta**2.0_dp)/(tausq*sigma)
     mu = sqrt(lambda/((y - matmul(X,beta))**2.0_dp/(tausq*sigma)))
-    where (mu < 1.0d-10) mu = 1.0d-10 !numerical stability
-    if (lambda < 1.0d-10) lambda = 1.0d-10 !numerical stability
     do i2 = 1,n
       call rinvgaus(mu(i2),lambda,v(i2))
     enddo
@@ -122,9 +120,10 @@ do i1 = 1,r
     shapebar = (shape0*2.0_dp + 3.0_dp*real(n,dp))/2.0_dp
     scalebar = (scale0*2.0_dp + sum(v)*2.0_dp + sum((y - matmul(X,beta) -&
                 theta*v)**2.0_dp/(tausq*v)))/2.0_dp
-    call rgamma(shapebar,1.0_dp/scalebar,sigmanew)
-    sigmanew = 1.0_dp/sigmanew
-    if (sigmanew < (4.0_dp*sigma)) sigma = sigmanew !numerical stability
+    if (scalebar < 1.0d-2) scalebar = 1.0d-2 !numerical stability
+    if (scalebar > 1.0d2) scalebar = 1.0d2 !numerical stability
+    call rgamma(shapebar,1.0_dp/scalebar,sigma)
+    sigma = 1.0_dp/sigma
 
   ! Save current draw 
   !ooooooooooooooooooo

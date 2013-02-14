@@ -96,6 +96,8 @@ do i1 = 1,r
   !ooooooooooooooooooooooooooooooo
     shape = a + 1.5_dp*real(n,dp)
     scale = sum(((y-matmul(X,beta)-theta*nu)**2)/(2.0_dp*omegasq*nu) + nu) + b
+    if (scale < 1.0d-2) scale = 1.0d-2 !numerical stability
+    if (scale > 1.0d2) scale = 1.0d2 !numerical stability
     call rgamma(shape,1.0_dp/scale,sigma)
     sigma = 1.0_dp/sigma
 
@@ -104,6 +106,8 @@ do i1 = 1,r
     shape = 1.0_dp + c
     do i2 = 1,k
         scale = 1.0_dp/(s(i2)/2.0_dp + d)
+        if (scale < 1.0d-2) scale = 1.0d-2 !numerical stability
+        if (scale > 1.0d2) scale = 1.0d2 !numerical stability
         call rgamma(shape,scale,etasq(i2))
     enddo
 
