@@ -1,7 +1,6 @@
 ! Written by Dries F. Benoit 
 ! Faculty of economics and business administration
 ! Ghent University - BELGIUM
-! LAST UPDATE (dd/mm/yy): 28/08/12
 
 ! MCMC sampler for quantile regression. This code is and improved
 ! version (Gibbs instead of Metropolis-Hastings) of the mcmc sampler
@@ -113,7 +112,7 @@ do i1 = 1,r
       call rnorm(beta(i2))
     enddo
 
-    beta = betabar + matmul(Vbaro1,beta)
+    beta = betabar + matmul(beta,Vbaro1)
 
   ! Simulate new value for sigma
   !oooooooooooooooooooooooooooooo

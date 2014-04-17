@@ -2,11 +2,12 @@
 \alias{plot.bayesQR}
 \title{ Produce quantile plots or traceplots with \code{plot.bayesQR} }
 \description{
-  \code{plot.bayesQR} is an S3 method that produces quantile plots or traceplots based on the estimates obtained by the \code{bayesQR} function. 
+  \code{plot.bayesQR} is an S3 method that produces quantile plots, traceplots or posterior histograms based on the estimates obtained by the \code{bayesQR} function. 
   For quantile plots, note that the more quantiles are estimated with \code{bayesQR}, the more detailed the quantile plot will be.
 }
 \usage{
-  \method{plot}{bayesQR}(x, var=NULL, quantile=NULL, burnin=0, credint=c(0.025,0.975), plottype=NULL, main=NULL, xlab=NULL, ylab=NULL, xlim=NULL, ylim=NULL, ...)
+  \method{plot}{bayesQR}(x, var=NULL, quantile=NULL, burnin=0, credint=c(0.025,0.975), plottype=NULL, 
+main=NULL, xlab=NULL, ylab=NULL, xlim=NULL, ylim=NULL, ...)
 }
 \arguments{
   \item{x}{ an output object of the \code{bayesQR} function, i.e. an S3 object of class bayesQR. }
@@ -14,7 +15,7 @@
   \item{quantile}{ vector containing the quantile(s) that has to be plotted (default=all quantiles). }
   \item{burnin}{ the number of burnin draws that should be discared (default=0, meaning all draws are included). }
   \item{credint}{ the width of the credible interval (default=c(0.025, 0.975)). }
-  \item{plottype}{ should be 'quantile' or 'trace'. }
+  \item{plottype}{ should be `quantile', `trace' or `hist'. }
   \item{main}{ Main title of the plot (default="").  }
   \item{xlab}{ Label of the x-axis; if omitted, the value chosen based on the input data. }
   \item{ylab}{ Label of the y-axis; if omitted, the value chosen based on the input data. }
@@ -30,8 +31,9 @@
 }
 \details{
   A quantile plot shows how the value of the regression parameter changes over a range of quantiles together with the associated credible interval.
-	Note that the more quantiles are estimated, the more detailed the quantile plot will be.
+  Note that the more quantiles are estimated, the more detailed the quantile plot will be.
   The minimum number of quantiles to plot is 2.
+  A posterior histogram provides a graphical representation of the marginal posterior distribution of the regression parameters.
   A traceplot gives the evolution of the MCMC chain and can be used as graphical check of convergence.
   Note that more formal checks of convergence exist (see, for example, the \pkg{coda} package).
 }
@@ -48,6 +50,9 @@ out <- bayesQR(y ~ X, quantile=c(.05,.25,.5,.75,.95), ndraw=5000)
 
 # Check traceplot of first variable of .75 quantile regression 
 plot(out, var=1, quantile=.75, plottype="trace")
+
+# Check posterior histogram of first variable of .5 quantile regression 
+plot(out, var=1, quantile=.5, plottype="hist")
 
 # Create default quantile plot of first variable
 plot(out, var=1, plottype="quantile")

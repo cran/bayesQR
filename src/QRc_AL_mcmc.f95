@@ -1,7 +1,6 @@
 ! Written by Dries F. Benoit 
 ! Faculty of economics and business administration
 ! Ghent University - BELGIUM
-! LAST UPDATE (dd/mm/yy): 02/12/12
 
 ! MCMC sampler for quantile regression with lasso variable selection.
 ! This code is and  

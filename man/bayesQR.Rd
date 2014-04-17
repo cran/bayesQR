@@ -118,6 +118,6 @@ outOLS = lm(y~X)
 abline(outOLS,lty=1,lwd=2,col=6)
 
 # Add legend to plot
-legend(x=0,y=max(y),legend=c(.05,.25,.50,.75,.95,"OLS"),lty=c(1,2,3,4,5,1),lwd=c(1,1,1,1,1,2),col=c(1:6),title="Quantile")
-
+legend(x=0,y=max(y),legend=c(.05,.25,.50,.75,.95,"OLS"),lty=c(1,2,3,4,5,1),
+       lwd=c(1,1,1,1,1,2),col=c(1:6),title="Quantile")
 }

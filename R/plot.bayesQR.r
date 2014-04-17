@@ -7,9 +7,9 @@ plot.bayesQR <- function(x, var=NULL, quantile=NULL, burnin=0, credint=c(.025,.9
   }
 
   if (length(plottype)!=1){
-	  pandterm("Plottype should be 'quantile' or 'trace'")
-	} else if (!(plottype %in% c("trace","quantile"))){
-	  pandterm("Plottype should be 'quantile' or 'trace'")
+	  pandterm("Plottype should be 'quantile' or 'trace' or 'hist'")
+	} else if (!(plottype %in% c("trace","quantile","hist"))){
+	  pandterm("Plottype should be 'quantile' or 'trace' or 'hist'")
 	}
 
   # Number of estimated quantiles
@@ -125,6 +125,44 @@ plot.bayesQR <- function(x, var=NULL, quantile=NULL, burnin=0, credint=c(.025,.9
 			for (ii in var){
 				plotdata <- x[[i]]$betadraw[,ii]
         plot(plotdata[(burnin+1):length(plotdata)], typ="l", xlab="iteration", ylab="beta", 
+				     main=paste("Quantile: ", x[[i]]$quantile, " - Beta ", ii))
+
+        # Ask user input
+  			if (!((i==tail(loopvec,n=1))&(ii==tail(var,n=1)))){
+          ans <- readline("Do you want to see the next plot (type 'y' or 'n'):\n")
+          while ((ans != "y") & (ans != "n")) ans <- readline("Incorrect input, type 'y' or 'n':\n")
+          if (ans == "n") break 
+  			}
+			}
+    if (ans == "n") break 
+		}
+	}
+
+  # Histogram plot 
+	#oooooooooooooooooooooooooo
+	if (plottype=="hist") {
+
+	  # if quantiles are specified, check if x
+		if (!is.null(quantile)){
+  		allquant <- sapply(x,"[[","quantile")
+  		if(!all(quantile %in% allquant)){
+ 		    pandterm("Specified quantile does not exist in x")
+		  }
+		  loopvec <- which(allquant %in% quantile)
+		} else {
+		  loopvec <- 1:nqr
+		}
+
+    # set 'ans'
+		ans <- "n"
+
+    # Loop trough quantiles
+		for (i in loopvec){
+		
+		  # Loop trough all specified variables
+			for (ii in var){
+				plotdata <- x[[i]]$betadraw[,ii]
+        hist(plotdata[(burnin+1):length(plotdata)], breaks=100, prob=TRUE, xlab="beta", 
 				     main=paste("Quantile: ", x[[i]]$quantile, " - Beta ", ii))
 
         # Ask user input
