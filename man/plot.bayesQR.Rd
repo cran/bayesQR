@@ -31,9 +31,11 @@ main=NULL, xlab=NULL, ylab=NULL, xlim=NULL, ylim=NULL, ...)
 }
 \details{
   A quantile plot shows how the value of the regression parameter changes over a range of quantiles together with the associated credible interval.
+  When the normal approximation was requested, the credible regions represent the adjusted credible intervals.
   Note that the more quantiles are estimated, the more detailed the quantile plot will be.
   The minimum number of quantiles to plot is 2.
   A posterior histogram provides a graphical representation of the marginal posterior distribution of the regression parameters.
+  When the normal approximation was requested, the histogram will be overlaid with the adjusted credible intervals.
   A traceplot gives the evolution of the MCMC chain and can be used as graphical check of convergence.
   Note that more formal checks of convergence exist (see, for example, the \pkg{coda} package).
 }
@@ -46,7 +48,10 @@ X <- X
 y <- 1 + 2*X + rnorm(n=n, mean=0, sd=.6*X)
 
 # Analyze 5 quantiles using default prior
-out <- bayesQR(y ~ X, quantile=c(.05,.25,.5,.75,.95), ndraw=5000)
+# NOTE: to limit execution time of the example, ndraw is set
+#       to a very low value. Set value to 5000 for a better
+#       approximation of the posterior distirubtion.
+out <- bayesQR(y ~ X, quantile=c(.05,.25,.5,.75,.95), ndraw=500)
 
 # Check traceplot of first variable of .75 quantile regression 
 plot(out, var=1, quantile=.75, plottype="trace")

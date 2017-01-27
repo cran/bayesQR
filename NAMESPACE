@@ -9,3 +9,11 @@ S3method(plot, bayesQR)
 S3method(predict, bayesQR)
 S3method(print, bayesQR.summary)
 S3method(summary, bayesQR)
+
+## import functions from
+importFrom("graphics", "box", "hist", "legend", "plot", "points",
+           "polygon")
+importFrom("methods", "is")
+importFrom("stats", "dnorm", "model.frame", "model.matrix",
+           "model.response", "qnorm", "quantile")
+importFrom("utils", "tail")

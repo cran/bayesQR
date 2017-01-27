@@ -9,24 +9,25 @@
 ! and Probability Letters 54(4): 437-447.
 
 ! Input arguments:
-!	- n		      : number of units of analysis
-!	- k   		  : number of independent variables
-!	- r		      : number of MCMC iterations
-!	- keep		  : thinning parameter of MCMC draws
-!	- y		      : dependent variable
-!	- p		      : quantile of interest
-!	- x		      : matrix of regressors (1:n, 1:nvar)
-!	- beta0    	: prior mean for the regression parameters
+!	- n	    : number of units of analysis
+!	- k   	    : number of independent variables
+!	- r	    : number of MCMC iterations
+!	- keep	    : thinning parameter of MCMC draws
+!	- y	    : dependent variable
+!	- p	    : quantile of interest
+!	- x	    : matrix of regressors (1:n, 1:nvar)
+!	- beta0     : prior mean for the regression parameters
 !	- V0 	    : prior covariance matrix for regression parameters
-! - shape0    : prior invGamma shape parameter for sigma
-! - scale0    : prior invGamma scale parameter for sigma
+!       - shape0    : prior invGamma shape parameter for sigma
+!       - scale0    : prior invGamma scale parameter for sigma
+!       - normal    : indicator if normal approximation is requested
 
 ! Output arguments:
 !	- betadraw	: the matrix of regression parameter estimates
 !	- sigmadraw	: the vector of scale estimates
 
 
-subroutine QRc_mcmc (n, k, r, keep, y, p, x, beta0, V01, shape0, scale0, betadraw, sigmadraw)
+subroutine QRc_mcmc (n, k, r, keep, y, p, x, beta0, V01, shape0, scale0, normal, betadraw, sigmadraw)
 
 implicit none
 
@@ -34,6 +35,7 @@ implicit none
 integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
+logical, intent(in) :: normal 
 integer, intent(in) :: n, r, k, keep
 real(dp), intent(in) :: p, shape0, scale0 
 real(dp), intent(in), dimension(n) :: y
@@ -116,6 +118,7 @@ do i1 = 1,r
 
   ! Simulate new value for sigma
   !oooooooooooooooooooooooooooooo
+  if (.not. normal) then
     shapebar = (shape0*2.0_dp + 3.0_dp*real(n,dp))/2.0_dp
     scalebar = (scale0*2.0_dp + sum(v)*2.0_dp + sum((y - matmul(X,beta) -&
                 theta*v)**2.0_dp/(tausq*v)))/2.0_dp
@@ -123,6 +126,7 @@ do i1 = 1,r
     if (scalebar > 1.0d2) scalebar = 1.0d2 !numerical stability
     call rgamma(shapebar,1.0_dp/scalebar,sigma)
     sigma = 1.0_dp/sigma
+  endif
 
   ! Save current draw 
   !ooooooooooooooooooo

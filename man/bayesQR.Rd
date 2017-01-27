@@ -6,21 +6,24 @@
 	To improve the speed of the routine, the Markov Chain Monte Carlo (MCMC) part of the algorithm is programmed in Fortran and is called from within the R function \code{bayesQR}.
 }
 \usage{
-  bayesQR(formula, data, quantile, alasso, ndraw, keep, prior)
+  bayesQR(formula, data, quantile, alasso, normal.approx, ndraw, keep, prior, seed)
 }
 \arguments{
   \item{formula}{ a symbolic description of the model to be fit. }
   \item{data}{ an optional data frame containing the variables in the model. }
   \item{quantile}{ numerical scalar or vector containing quantile(s) of interest (default=0.5). }
 	\item{alasso}{ logical flag for adaptive lasso variable selection (default=FALSE). }
+	\item{normal.approx}{ logical flag for normal approximation of posterior distribution (default=TRUE). }
 	\item{ndraw}{ number of MCMC draws. }
 	\item{keep}{ thinning parameter, i.e. keep every keepth draw (default=1). }
 	\item{prior}{ an S3 object of class \code{"prior"}. If omitted, a diffuse prior will be assumed (see \code{\link{prior}}). }
+	\item{seed}{ Integer seed value to initialize the (Fortran) random number generator used in the MCMC procedure. If omitted, a random seed will be used. }
 }
 \value{
   An object of class \code{bayesQR}, basically a list of lists.
 	For every estimated quantile a list is created containing the following elements:
   \item{method}{ a string containing the method that was used, i.e. indicating whether the dependent variable was continuous or binary and whether adaptive lasso variable selection was used. }
+	\item{normal.approx}{ logical flag for normal approximation of posterior distribution. }
   \item{quantile}{ the quantile that was estimated. }
 	\item{names}{ character vector containing the names of the independent variables in the model. }
   \item{betadraw}{ ndraw/keep x nvar(X) matrix of beta draws. }
@@ -69,27 +72,31 @@
 }
 \references{
   \itemize{  
+  \item Paper about the bayesQR package:
+
+  Benoit, D.F and Van den Poel, D. (2017). bayesQR: A Bayesian Approach to Quantile Regression, \emph{Journal of Statistical Software}, 76(7), 1-32. <doi:10.18637/jss.v076.i07>\cr
+
   \item Continuous dependent variable without adaptive lasso variable selection:
 
-  Yu, K. and Moyeed, R. (2001). Bayesian quantile regression, \emph{Statistics and Probability Letters}, 54, 437-447.
+  Yu, K. and Moyeed, R. (2001). Bayesian quantile regression, \emph{Statistics and Probability Letters}, 54, 437-447. <doi:10.1016/S0167-7152(01)00124-9>
 
   Also see: \cr
-  Kozumi, H. and Kobayashi, G. (2011). Gibbs sampling methods for Bayesian quantile regression, \emph{Journal of Statistical Computation and Simulation}, 81(11), 1565-1578. \cr
+  Kozumi, H. and Kobayashi, G. (2011). Gibbs sampling methods for Bayesian quantile regression, \emph{Journal of Statistical Computation and Simulation}, 81(11), 1565-1578. <doi:10.1080/00949655.2010.496117>\cr
 
   \item Continuous dependent variable with adaptive lasso variable selection:
 
-  Alhamzawi, R., Yu, K. and Benoit, D.F. (2012). Bayesian adaptive LASSO quantile regression, \emph{Statistical Modelling}, 12(3), 279-297.
+  Alhamzawi, R., Yu, K. and Benoit, D.F. (2012). Bayesian adaptive LASSO quantile regression, \emph{Statistical Modelling}, 12(3), 279-297. <doi:10.1177/1471082X1101200304>
 
   Also see: \cr
-  Li, Q., Xi, R. and Lin, N. (2010). Bayesian Regularized Quantile Regression. \emph{Bayesian Analysis}, 5, 1-24. \cr
+  Li, Q., Xi, R. and Lin, N. (2010). Bayesian Regularized Quantile Regression. \emph{Bayesian Analysis}, 5, 1-24. <doi:10.1214/10-BA521>\cr
 
   \item Binary dependent variable without adaptive lasso variable selection:
 
-  Benoit, D.F. and Van den Poel, D. (2012). Binary quantile regression: A Bayesian approach based on the asymmetric Laplace distribution, \emph{Journal of Applied Econometrics}, 27(7), 1174-1188. \cr
+  Benoit, D.F. and Van den Poel, D. (2012). Binary quantile regression: A Bayesian approach based on the asymmetric Laplace distribution, \emph{Journal of Applied Econometrics}, 27(7), 1174-1188. <doi:10.1002/jae.1216>\cr
 
   \item Binary dependent variable with adaptive lasso variable selection:
 
-  Al-Hamzawi, R., Benoit, D.F. and Yu, K. (2012). Binary quantile regression with adaptive lasso: A Bayesian approach, working paper.
+  Al-Hamzawi, R., Benoit, D.F. and Yu, K. (2012). Bayesian lasso binary quantile regression. \emph{Computational Statistics}, 28(6), 2861-2873. <doi:10.1007/s00180-013-0439-0>
 	}
 }
 \examples{
@@ -101,14 +108,17 @@ X <- X
 y <- 1 + 2*X + rnorm(n=n, mean=0, sd=.6*X)
 
 # Estimate series of quantile regressions with adaptive lasso
-out <- bayesQR(y~X, quantile=c(.05,.25,.5,.75,.95), alasso=TRUE, ndraw=5000)
+# NOTE: to limit execution time of the example, ndraw is set
+#       to a very low value. Set value to 5000 for a better
+#       approximation of the posterior distirubtion.
+out <- bayesQR(y~X, quantile=c(.05,.25,.5,.75,.95), alasso=TRUE, ndraw=500)
 
 # Initiate plot
 ## Plot datapoints
 plot(X, y, main="", cex=.6, xlab="X")
 
 ## Add quantile regression lines to the plot (exclude first 500 burn-in draws)
-sum <- summary(out, burnin=500)
+sum <- summary(out, burnin=50)
 for (i in 1:length(sum)){
   abline(a=sum[[i]]$betadraw[1,1],b=sum[[i]]$betadraw[2,1],lty=i,col=i)
 }

@@ -19,12 +19,13 @@
 \value{
   An object of class \code{bayesQR.summary}, basically a list including elements:
   \item{method}{ a string containing the method that was used, i.e. indicating whether the dependent variable was continuous or binary and whether adaptive lasso variable selection was used. }
+  \item{normal.approx}{ logical flag for normal approximation of posterior distribution. }
   \item{quantile}{ the quantile that was estimated. }
   \item{names}{ character vector containing the names of the independent variables in the model. }
   \item{burnin}{ the number of burnin draws that were discarded. }
   \item{retained}{ the number of draws that were retained and used to calculate the summary statistics. }
   \item{credint}{ the width of the credible interval. }
-  \item{betadraw}{ the Bayes estimate and credible interval of the beta draws. }
+  \item{betadraw}{ the Bayes estimate, credible interval and, if \code{normal.approx=TRUE}, the adjusted credible intervals of the beta draws. }
   \item{sigmadraw}{ the Bayes estimate and credible interval of the sigma draws. }
 }
 \author{

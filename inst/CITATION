@@ -1,0 +1,22 @@
+bibentry(bibtype = "Article",
+  title        = "{bayesQR}: A Bayesian Approach to Quantile Regression",
+  author       = c(person(given = c("Dries", "F."),
+                          family = "Benoit",
+                          email = "Dries.Benoit@UGent.be"),
+                   person(given = "Dirk",
+                          family = "Van den Poel")),
+  journal      = "Journal of Statistical Software",
+  year         = "2017",
+  volume       = "76",
+  number       = "7",
+  pages        = "1--32",
+  doi          = "10.18637/jss.v076.i07",
+
+  header       = "To cite bayesQR in publications use:",
+  textVersion  =
+  paste("Dries F. Benoit, Dirk Van den Poel (2017).",
+        "bayesQR: A Bayesian Approach to Quantile Regression.",
+        "Journal of Statistical Software, 76(7), 1-32.",
+        "doi:10.18637/jss.v076.i07")
+)
+

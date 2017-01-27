@@ -1,4 +1,7 @@
-print.bayesQR.summary <- function(x, digits=3, ...){
+print.bayesQR <- function(x, digits=3, ...){
+
+	# Create summary object of x
+	x <- summary(x)
 
 	# Number of quantile regression summaries to print
 	nqr <- length(x)
@@ -26,23 +29,11 @@ print.bayesQR.summary <- function(x, digits=3, ...){
 			cat("Normal approximation of posterior: no\n")
 		}
 		cat(paste("Estimated quantile: ",QRsub$quantile),"\n")
-		cat(paste("Lower credible bound: ",QRsub$credint[1]),"\n")
-		cat(paste("Upper credible bound: ",QRsub$credint[2]),"\n")
-		cat(paste("Number of burnin draws: ",QRsub$burnin),"\n")
-		cat(paste("Number of retained draws: ",QRsub$retained),"\n")
 		cat("\n")
 		cat("\n")
-		cat("Summary of the estimated beta:\n")
+		cat("Coefficients (Bayes estimates):\n")
 		cat("\n")
-		print(QRsub$betadraw,digits=digits)
-		cat("\n")
-		if ((QRsub$method %in% c("QRc","QRc.AL"))&(!QRsub$normal.approx)){
-			cat("\n")
-			cat("Summary of the estimated sigma:\n")
-			cat("\n")
-			print(QRsub$sigmadraw,digits=digits)
-			cat("\n")
-		}
+		print(QRsub$betadraw[,1],digits=digits)
 		if ((nqr>1)&(i<nqr)) cat("*****************************************\n")
 	}
 }

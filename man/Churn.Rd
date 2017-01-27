@@ -17,9 +17,11 @@ This dataset is a stratified random sample from all active customers (at the end
   }
 }
 \source{
-Benoit, D.F. and Van den Poel, D. (2013). Quantile regression for database marketing: methods and applications. In: Coussement, K., De Bock, K.W. and Neslin, S.A. (eds.). \emph{Advanced database marketing: Innovative methodologies and applications for managing customer relationships}. Gower Publishing: London (UK), (in press).
+Benoit, D.F. and Van den Poel, D. (2013). Quantile regression for database marketing: methods and applications. In: Coussement, K., De Bock, K.W. and Neslin, S.A. (eds.). \emph{Advanced database marketing: Innovative methodologies and applications for managing customer relationships}. Gower Publishing: London (UK). <doi:10.4324/9781315565682>
 }
 \references{
-Benoit, D.F. and Van den Poel, D. (2013). Quantile regression for database marketing: methods and applications. In: Coussement, K., De Bock, K.W. and Neslin, S.A. (eds.). \emph{Advanced database marketing: Innovative methodologies and applications for managing customer relationships}. Gower Publishing: London (UK), (in press).
+Benoit, D.F. and Van den Poel, D. (2013). Quantile regression for database marketing: methods and applications. In: Coussement, K., De Bock, K.W. and Neslin, S.A. (eds.). \emph{Advanced database marketing: Innovative methodologies and applications for managing customer relationships}. Gower Publishing: London (UK). <doi:10.4324/9781315565682>
+
+Benoit, D.F and Van den Poel, D. (2017). bayesQR: A Bayesian Approach to Quantile Regression, \emph{Journal of Statistical Software}, 76(7), 1-32. <doi:10.18637/jss.v076.i07>
 }
 \keyword{datasets}

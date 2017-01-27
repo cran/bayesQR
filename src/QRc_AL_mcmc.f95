@@ -17,13 +17,14 @@
 !    - b          : scale parameter of inverse gamma prior on sigma
 !    - c          : shape parameter of gamma prior on etasquared 
 !    - d          : rate parameter of gamma prior on etasquared 
+!    - normal     : indicator if normal approximation is requested 
 
 ! Output arguments:
 !    - betadraw	  : the matrix of regression parameter estimates
 !    - sigmadraw  : the vector of scale estimates
 
 
-subroutine QRc_AL_mcmc (n, k, r, keep, y, p, x, a, b, c, d, betadraw, sigmadraw)
+subroutine QRc_AL_mcmc (n, k, r, keep, y, p, x, a, b, c, d, normal, betadraw, sigmadraw)
 
 implicit none
 
@@ -31,6 +32,7 @@ implicit none
 integer, parameter :: dp = kind(1.0d0)
 
 ! Input arguments:
+logical, intent(in) :: normal
 integer, intent(in) :: n, k, r, keep
 real(dp), intent(in) :: p, a, b, c, d 
 real(dp), intent(in), dimension(n) :: y
@@ -93,12 +95,14 @@ do i1 = 1,r
 
   ! Simulate new values for sigma 
   !ooooooooooooooooooooooooooooooo
+  if (.not. normal) then
     shape = a + 1.5_dp*real(n,dp)
     scale = sum(((y-matmul(X,beta)-theta*nu)**2)/(2.0_dp*omegasq*nu) + nu) + b
     if (scale < 1.0d-2) scale = 1.0d-2 !numerical stability
     if (scale > 1.0d2) scale = 1.0d2 !numerical stability
     call rgamma(shape,1.0_dp/scale,sigma)
     sigma = 1.0_dp/sigma
+  endif
 
   ! Simulate new values for etasq 
   !ooooooooooooooooooooooooooooooo
