@@ -6,7 +6,7 @@
 	To improve the speed of the routine, the Markov Chain Monte Carlo (MCMC) part of the algorithm is programmed in Fortran and is called from within the R function \code{bayesQR}.
 }
 \usage{
-  bayesQR(formula, data, quantile, alasso, normal.approx, ndraw, keep, prior, seed)
+  bayesQR(formula, data, quantile, alasso, normal.approx, ndraw, keep, prior)
 }
 \arguments{
   \item{formula}{ a symbolic description of the model to be fit. }
@@ -17,7 +17,6 @@
 	\item{ndraw}{ number of MCMC draws. }
 	\item{keep}{ thinning parameter, i.e. keep every keepth draw (default=1). }
 	\item{prior}{ an S3 object of class \code{"prior"}. If omitted, a diffuse prior will be assumed (see \code{\link{prior}}). }
-	\item{seed}{ Integer seed value to initialize the (Fortran) random number generator used in the MCMC procedure. If omitted, a random seed will be used. }
 }
 \value{
   An object of class \code{bayesQR}, basically a list of lists.

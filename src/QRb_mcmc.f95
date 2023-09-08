@@ -146,10 +146,41 @@ contains
 !===========================================================================================
 
 
-! This code generates one draw from the standard normal 
-! distribution. Note that more efficient code is possible
-! when more than one normal draw is required.
-! This code is based on the Box-Muller method.
+
+! This code generates one draw from the standard uniform 
+! distribution. It calls R's internal random number
+! generation routine.
+
+! Output arguments:
+!	- fn_val	: random draw from U(0,1) distribution
+
+subroutine runif(fn_val)
+
+implicit none
+
+! Precision statement:
+integer, parameter :: dp = kind(1.0d0)
+
+! Output arguments:
+real(dp), intent(out) :: fn_val
+
+! Internal arguments:
+real(dp) :: unifrnd
+
+call rndstart()
+fn_val = unifrnd()
+call rndend()
+
+end subroutine runif
+
+
+
+!===========================================================================================
+
+
+! This code generates one draw from the standard Gaussian 
+! distribution. It calls R's internal random number
+! generation routine.
 
 ! Output arguments:
 !	- fn_val	: random draw from N(0,1) distribution
@@ -165,16 +196,14 @@ integer, parameter :: dp = kind(1.0d0)
 real(dp), intent(out) :: fn_val
 
 ! Internal arguments:
-real(dp) :: pi
-real(dp), dimension(1:2) :: u
+real(dp) :: normrnd
 
-pi = 3.14159265358979323846_dp
-
-call random_number(u)
-
-fn_val = sqrt(-2*log(u(1))) * cos(2*pi*u(2))
+call rndstart()
+fn_val = normrnd()
+call rndend()
 
 end subroutine rnorm
+
 
 
 !===========================================================================================
@@ -186,7 +215,7 @@ end subroutine rnorm
 ! American Statistician, 30(2), p. 88-90.
 
 ! This subroutine makes use of the subroutines:
-!	- rnorm	: Box-Muller method for random normal draws
+!	- rnorm	: R's internal random normal draw generator
 
 ! Input arguments:
 !	- mu		: mean parameter of the InvGaussian distribution
@@ -219,7 +248,7 @@ q = mu + (nu*mu*mu)/(lambda*2.0_dp) - &
     mu/(2.0_dp*lambda)*sqrt(4.0_dp*mu*lambda*nu &
     + mu*mu*nu*nu)
 
-call random_number(z)
+call runif(z)
 
 if (z .le. (mu/(mu+q))) then
     fn_val = q
@@ -228,6 +257,7 @@ else
 end if
 
 end subroutine rinvgaus
+
 
 
 !===========================================================================================
@@ -242,7 +272,7 @@ end subroutine rinvgaus
 ! Interface, pp. 571-578.
 
 ! This subroutine makes use of the subroutines:
-!	- rnorm		: Box-Muller method for random normal draws
+!	- rnorm	: R's internal random normal draw generator
 
 ! Input arguments:
 ! a             -	trucation point
@@ -297,10 +327,12 @@ else
   do
     ! Create exponential random variate z
     ! from uniform random variate u(1)
-    call random_number(u)
+    call runif(u(1))
     z = -log(u(1))/c
 
     phi_z = exp(-.5_dp * z**2_dp) !see Geweke
+
+    call runif(u(2))
     if (u(2)<phi_z) exit
   end do
   z=z+c

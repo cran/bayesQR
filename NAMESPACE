@@ -1,5 +1,5 @@
 ## load shared objects
-useDynLib(bayesQR)
+useDynLib("bayesQR", .registration=TRUE)
 
 ## functions available to user
 export(bayesQR, prior)
@@ -7,6 +7,7 @@ export(bayesQR, prior)
 ## register S3 methods
 S3method(plot, bayesQR)
 S3method(predict, bayesQR)
+S3method(print, bayesQR)
 S3method(print, bayesQR.summary)
 S3method(summary, bayesQR)
 

@@ -1,4 +1,4 @@
-bayesQR.single <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.approx=NULL, ndraw=NULL, keep=1, prior=NULL){
+bayesQR_single <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.approx=NULL, ndraw=NULL, keep=1, prior=NULL){
 
 	# Create function for error message
 	pandterm <- function(message) {

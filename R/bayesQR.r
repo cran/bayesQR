@@ -1,4 +1,4 @@
-bayesQR <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.approx=NULL, ndraw=NULL, keep=1, prior=NULL, seed=NULL){
+bayesQR <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.approx=NULL, ndraw=NULL, keep=1, prior=NULL){
 
 	# Create function for error message
 	pandterm <- function(message) {
@@ -11,16 +11,11 @@ bayesQR <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.
 	# Define an empty object (list)
 	out <- NULL
 
-	# Set seed value for Fortran random number generator
-	if (!is.null(seed)){
-		seedval <- .Fortran("setseed",as.integer(seed))
-	} 
-
-	# If only one quantile is required, then call bayesQR.single
+	# If only one quantile is required, then call bayesQR_single
 	if (nqr==1){
-		out[[1]] <- bayesQR.single(formula=formula, data=data, quantile=quantile, alasso=alasso, normal.approx=normal.approx, ndraw=ndraw, keep=keep, prior=prior)
+		out[[1]] <- bayesQR_single(formula=formula, data=data, quantile=quantile, alasso=alasso, normal.approx=normal.approx, ndraw=ndraw, keep=keep, prior=prior)
 
-	# Else, estimate a sequence of bayesQR.single
+	# Else, estimate a sequence of bayesQR_single
 	} else {
 
 		# Sort required quantiles
@@ -35,7 +30,7 @@ bayesQR <- function(formula=NULL, data=NULL, quantile=0.5, alasso=FALSE, normal.
 			cat("************************************************","\n")
 			
 			# Set correct quantile and estimate model
-			out[[i]] <- bayesQR.single(formula=formula, data=data, quantile=quantile[i], alasso=alasso, normal.approx=normal.approx, ndraw=ndraw, keep=keep, prior=prior)
+			out[[i]] <- bayesQR_single(formula=formula, data=data, quantile=quantile[i], alasso=alasso, normal.approx=normal.approx, ndraw=ndraw, keep=keep, prior=prior)
 		}
 	}
 

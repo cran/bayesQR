@@ -36,7 +36,7 @@
 data(Churn)
 
 # Estimate the model parameters with default prior
-out <- bayesQR(churn~gender+recency, data=Churn, ndraw=5000)
+out <- bayesQR(churn~gender+recency, data=Churn, ndraw=2000)
 
 # Return Bayes estimates and credible intervals 
 sum <- summary(out, burnin=1000)

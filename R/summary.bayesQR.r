@@ -7,7 +7,7 @@ summary.bayesQR <- function(object, burnin=0, credint=c(.025,.975), quantile=NUL
 
 	# If no quantile is specified, summarize all estimated quantiles 
 	if (is.null(quantile)){
-		out <- lapply(object, FUN="summary.bayesQR.single", burnin=burnin, credint=credint)
+		out <- lapply(object, FUN="summary_bayesQR_single", burnin=burnin, credint=credint)
 	
 	# Else, only summarize subset of estimated quantiles
 	} else {
@@ -21,7 +21,7 @@ summary.bayesQR <- function(object, burnin=0, credint=c(.025,.975), quantile=NUL
 			object <- object[(sapply(object, "[[", "quantile") %in% quantile)]
 
 			# Summarize specified quantiles
-			out <- lapply(object, FUN="summary.bayesQR.single", burnin=burnin, credint=credint)
+			out <- lapply(object, FUN="summary_bayesQR_single", burnin=burnin, credint=credint)
 		}
 	}
 

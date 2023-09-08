@@ -1,4 +1,4 @@
-summary.bayesQR.single <- function(QRobj, burnin=0, credint=c(.025,.975)){
+summary_bayesQR_single <- function(QRobj, burnin=0, credint=c(.025,.975)){
 
 	# Dimensions of QRobj
 	k <- ncol(QRobj$betadraw)
